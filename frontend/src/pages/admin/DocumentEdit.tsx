@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { MarkdownEditor } from '@/components/MarkdownEditor'
 import { ArrowLeft, Upload } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { VersionHistoryModal } from '@/components/VersionHistoryModal'
 
 export default function AdminDocumentEdit() {
   const { id } = useParams()
@@ -63,11 +64,22 @@ export default function AdminDocumentEdit() {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <h1 className="text-2xl font-bold">{isNew ? 'New Document' : 'Edit Document'}</h1>
-        <div className="ml-auto"><ThemeToggle /></div>
+        <div className="ml-auto flex items-center gap-1">
+          {!isNew && id && (
+            <VersionHistoryModal
+              id={id}
+              mode="document"
+              onRestored={() => {
+                qc.invalidateQueries({ queryKey: ['document', id] })
+              }}
+            />
+          )}
+          <ThemeToggle />
+        </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-1 space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-1 space-y-4">
           <div>
             <Label>Title</Label>
             <Input
@@ -176,7 +188,7 @@ export default function AdminDocumentEdit() {
           </Button>
         </div>
 
-        <div className="col-span-2 flex flex-col">
+        <div className="md:col-span-2 flex flex-col">
           <Label>Content</Label>
           <div className="mt-1 flex-1">
             <MarkdownEditor value={form.content} onChange={v => setForm(f => ({ ...f, content: v }))} />

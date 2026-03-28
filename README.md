@@ -73,6 +73,7 @@ Everything you need to capture, organize, and share AI-generated knowledge — w
 |--|---------|-------------|
 | 🤖 | **AI-native MCP server** | 9 built-in tools — agents can list, create, search, and stream docs |
 | ⚡ | **Live streaming renderer** | Watch markdown render chunk-by-chunk as the agent writes, via SSE |
+| 📜 | **Version history** | View and restore any previous version of a document or section |
 | 🐳 | **Single command setup** | `docker-compose up --build` — full stack, no config required |
 | 🔒 | **Self-hosted** | Your docs, your data, your storage. SQLite by default, S3/R2 optional |
 | 🔍 | **Full-text search** | Instant search across all sections and documents |
@@ -468,6 +469,7 @@ aidotmd/
 | **Your data, your storage** | ✅ Local / S3 | ❌ Their cloud | ❌ Their cloud | ⚠️ Manual |
 | **AI agent writes docs** | ✅ Native MCP | ❌ | ❌ | ❌ |
 | **Live streaming render** | ✅ SSE | ❌ | ❌ | ❌ |
+| **Version history** | ✅ | ⚠️ Paid | ⚠️ Paid | ❌ |
 | **Self-hosted** | ✅ | ❌ | Paid only | ✅ |
 | **Single-command launch** | ✅ Docker | ❌ | ❌ | ⚠️ Manual |
 | **Share via link (no copy-paste)** | ✅ Built-in | ✅ | ✅ | ❌ |

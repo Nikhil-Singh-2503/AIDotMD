@@ -31,13 +31,21 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 // ---- Types ----
 export interface Section {
   id: string; title: string; slug: string; description?: string;
-  parent_id?: string | null; order: number; created_at: string; updated_at: string;
+  parent_id?: string | null; order: number; version: string; created_at: string; updated_at: string;
   deleted_at?: string | null;
 }
 export interface Document {
   id: string; title: string; description?: string; section_id: string; slug: string;
-  content: string; order: number; is_published: boolean; created_at: string; updated_at: string;
+  content: string; order: number; version: string; is_published: boolean; created_at: string; updated_at: string;
   deleted_at?: string | null;
+}
+export interface DocumentVersion {
+  id: string; document_id: string; version: string; title: string; description?: string;
+  section_id: string; slug: string; content: string; order: number; is_published: boolean; created_at: string;
+}
+export interface SectionVersion {
+  id: string; section_id: string; version: string; title: string; slug: string;
+  description?: string; parent_id?: string | null; order: number; created_at: string;
 }
 export interface NavNode {
   id: string; title: string; slug: string; order: number;
@@ -80,6 +88,8 @@ export const api = {
     update: (id: string, data: Partial<Section>) => request<Section>(`/sections/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/sections/${id}`, { method: 'DELETE' }),
     reorder: (ids: string[]) => request<void>('/sections/reorder', { method: 'POST', body: JSON.stringify({ ids }) }),
+    getVersions: (id: string) => request<SectionVersion[]>(`/sections/${id}/versions`),
+    restoreVersion: (sectionId: string, versionId: string) => request<Section>(`/sections/${sectionId}/versions/${versionId}/restore`, { method: 'POST' }),
   },
   documents: {
     list: (section_id?: string) => request<Document[]>(`/documents${section_id ? `?section_id=${section_id}` : ''}`),
@@ -89,6 +99,8 @@ export const api = {
     update: (id: string, data: Partial<Document>) => request<Document>(`/documents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/documents/${id}`, { method: 'DELETE' }),
     reorder: (section_id: string, ids: string[]) => request<void>('/documents/reorder', { method: 'POST', body: JSON.stringify({ section_id, ids }) }),
+    getVersions: (id: string) => request<DocumentVersion[]>(`/documents/${id}/versions`),
+    restoreVersion: (docId: string, versionId: string) => request<Document>(`/documents/${docId}/versions/${versionId}/restore`, { method: 'POST' }),
   },
   nav: {
     tree: () => request<NavTree>('/nav/tree'),

@@ -31,9 +31,26 @@ class DocumentOut(BaseModel):
     slug: str
     content: str
     order: int
+    version: str = ""
     is_published: bool
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class DocumentVersionOut(BaseModel):
+    id: str
+    document_id: str
+    version: str
+    title: str
+    description: Optional[str]
+    section_id: str
+    slug: str
+    content: str
+    order: int
+    is_published: bool
+    created_at: datetime
 
     model_config = {"from_attributes": True}
 

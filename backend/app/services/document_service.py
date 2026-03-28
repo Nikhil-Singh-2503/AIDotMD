@@ -2,10 +2,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update as sa_update
 from typing import Optional, List
 from slugify import slugify
-from app.models.models import Document, utcnow
+from app.models.models import Document, DocumentVersion, utcnow
 from app.schemas.document import DocumentCreate, DocumentUpdate
 from app.storage.filesystem import FilesystemStorage
 from app.config import get_settings
+from app.services.version_utils import next_document_version
 
 # Module-level storage instance (overrideable in tests)
 _storage: Optional[FilesystemStorage] = None
@@ -23,6 +24,24 @@ def get_storage() -> FilesystemStorage:
     return _storage
 
 
+async def _snapshot(db: AsyncSession, doc: Document) -> None:
+    """Save a version snapshot of the current document state."""
+    ver = await next_document_version(db, doc.id)
+    doc.version = ver
+    snapshot = DocumentVersion(
+        document_id=doc.id,
+        version=ver,
+        title=doc.title,
+        description=doc.description,
+        section_id=doc.section_id,
+        slug=doc.slug,
+        content=doc.content,
+        order=doc.order,
+        is_published=doc.is_published,
+    )
+    db.add(snapshot)
+
+
 async def create(db: AsyncSession, data: DocumentCreate) -> Document:
     slug = data.slug or slugify(data.title)
     doc = Document(
@@ -31,6 +50,8 @@ async def create(db: AsyncSession, data: DocumentCreate) -> Document:
         is_published=data.is_published,
     )
     db.add(doc)
+    await db.flush()           # get doc.id before snapshotting
+    await _snapshot(db, doc)
     await db.commit()
     await db.refresh(doc)
     # Sync to filesystem
@@ -89,6 +110,7 @@ async def update(db: AsyncSession, doc_id: str, data: DocumentUpdate) -> Optiona
         return None
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(doc, field, value)
+    await _snapshot(db, doc)
     await db.commit()
     await db.refresh(doc)
     # Re-sync filesystem
@@ -118,3 +140,40 @@ async def reorder(db: AsyncSession, section_id: str, ids: List[str]) -> None:
             sa_update(Document).where(Document.id == doc_id, Document.section_id == section_id).values(order=i)
         )
     await db.commit()
+
+
+async def list_versions(db: AsyncSession, doc_id: str) -> List[DocumentVersion]:
+    result = await db.execute(
+        select(DocumentVersion)
+        .where(DocumentVersion.document_id == doc_id)
+        .order_by(DocumentVersion.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def restore_version(db: AsyncSession, doc_id: str, version_id: str) -> Optional[Document]:
+    """Restore a document to a past version snapshot (creates a new version entry)."""
+    snap_result = await db.execute(
+        select(DocumentVersion).where(DocumentVersion.id == version_id, DocumentVersion.document_id == doc_id)
+    )
+    snap = snap_result.scalar_one_or_none()
+    if not snap:
+        return None
+    doc = await get(db, doc_id)
+    if not doc:
+        return None
+    doc.title = snap.title
+    doc.description = snap.description
+    doc.slug = snap.slug
+    doc.content = snap.content
+    doc.order = snap.order
+    doc.is_published = snap.is_published
+    doc.section_id = snap.section_id
+    await _snapshot(db, doc)
+    await db.commit()
+    await db.refresh(doc)
+    from app.services.section_service import get as get_section
+    section = await get_section(db, doc.section_id)
+    if section:
+        await get_storage().write_document(section.slug, doc.slug, doc.content, title=doc.title, order=doc.order)
+    return doc
