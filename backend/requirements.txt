@@ -1,0 +1,14 @@
+fastapi>=0.115.12
+uvicorn[standard]==0.30.6
+fastmcp>=2.0.0
+sqlalchemy[asyncio]==2.0.35
+aiosqlite==0.20.0
+alembic==1.13.2
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-multipart==0.0.12
+python-slugify==8.0.4
+aiofiles==24.1.0
+httpx>=0.28.1
+pytest==8.3.3
+pytest-asyncio==0.24.0

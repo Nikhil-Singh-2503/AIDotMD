@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # 4 slashes required for absolute SQLite path in SQLAlchemy async URLs
+      DATABASE_URL: "sqlite+aiosqlite:////app/data/aidotmd.db"
+      DOCS_OUTPUT_DIR: "/app/data/docs"
+      STATIC_DIR: "/app/data/static/img"
+      DATA_DIR: "/app/data"
+      BASE_URL: "http://localhost:3000"
+      CORS_ORIGINS: "http://localhost:3000,http://localhost:5173"
+    volumes:
+      # Persists SQLite DB + uploaded docs + images across container restarts
+      - ./data:/app/data
+    # Backend is internal only — nginx is the only entry point for users
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - aidotmd_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - aidotmd_net
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    # Quick tunnel — no account, no token, no domain required.
+    # A free random *.trycloudflare.com URL is printed to logs on every start.
+    # Run: docker-compose logs cloudflared | grep trycloudflare.com
+    command: tunnel --no-autoupdate --url http://frontend:80
+    depends_on:
+      - frontend
+    networks:
+      - aidotmd_net
+
+networks:
+  aidotmd_net:
+    driver: bridge

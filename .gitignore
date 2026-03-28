@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+.pytest_cache/
+.env
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+
+# Alembic
+backend/alembic/versions/__pycache__/
+
+# Data dirs (generated at runtime — contains secrets + uploads)
+backend/data/
+data/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
