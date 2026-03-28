@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import AdminDocuments from './pages/admin/Documents'
 import AdminDocumentEdit from './pages/admin/DocumentEdit'
 import AdminSections from './pages/admin/Sections'
+import AdminTrash from './pages/admin/Trash'
 import DocsLayout from './pages/reader/DocsLayout'
 import DocPage from './pages/reader/DocPage'
 import DocsIndex from './pages/reader/DocsIndex'
@@ -14,6 +15,7 @@ export const router = createBrowserRouter([
   { path: '/settings', element: <Settings /> },
   { path: '/admin', element: <AdminGuard><AdminDocuments /></AdminGuard> },
   { path: '/admin/sections', element: <AdminGuard><AdminSections /></AdminGuard> },
+  { path: '/admin/trash', element: <AdminGuard><AdminTrash /></AdminGuard> },
   { path: '/admin/documents/new', element: <AdminGuard><AdminDocumentEdit /></AdminGuard> },
   { path: '/admin/documents/:id', element: <AdminGuard><AdminDocumentEdit /></AdminGuard> },
   {

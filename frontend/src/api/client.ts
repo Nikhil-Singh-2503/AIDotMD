@@ -32,10 +32,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export interface Section {
   id: string; title: string; slug: string; description?: string;
   parent_id?: string | null; order: number; created_at: string; updated_at: string;
+  deleted_at?: string | null;
 }
 export interface Document {
   id: string; title: string; description?: string; section_id: string; slug: string;
   content: string; order: number; is_published: boolean; created_at: string; updated_at: string;
+  deleted_at?: string | null;
 }
 export interface NavNode {
   id: string; title: string; slug: string; order: number;
@@ -93,6 +95,11 @@ export const api = {
   },
   search: {
     query: (q: string) => request<SearchResult[]>(`/search?q=${encodeURIComponent(q)}`),
+  },
+  trash: {
+    list: () => request<{sections: Section[], documents: Document[]}>('/trash'),
+    restore: (id: string, type: 'section' | 'document') => request<{status: string}>('/trash/restore', { method: 'POST', body: JSON.stringify({ id, type }) }),
+    hardDelete: (id: string, type: 'section' | 'document') => request<{status: string}>(`/trash/permanent?id=${id}&type=${type}`, { method: 'DELETE' }),
   },
   settings: {
     get: () => request<AppSettings>('/settings').then(data => {

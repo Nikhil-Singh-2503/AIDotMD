@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update as sa_update
 from typing import Optional, List
 from slugify import slugify
-from app.models.models import Document
+from app.models.models import Document, utcnow
 from app.schemas.document import DocumentCreate, DocumentUpdate
 from app.storage.filesystem import FilesystemStorage
 from app.config import get_settings
@@ -42,7 +42,7 @@ async def create(db: AsyncSession, data: DocumentCreate) -> Document:
 
 
 async def get(db: AsyncSession, doc_id: str) -> Optional[Document]:
-    result = await db.execute(select(Document).where(Document.id == doc_id))
+    result = await db.execute(select(Document).where(Document.id == doc_id, Document.deleted_at.is_(None)))
     return result.scalar_one_or_none()
 
 
@@ -56,19 +56,20 @@ async def get_by_slug(db: AsyncSession, section_slug: str, doc_slug: str) -> Opt
             Document.section_id == section.id,
             Document.slug == doc_slug,
             Document.is_published == True,
+            Document.deleted_at.is_(None),
         )
     )
     return result.scalar_one_or_none()
 
 
 async def list_all(db: AsyncSession) -> List[Document]:
-    result = await db.execute(select(Document).order_by(Document.order, Document.created_at))
+    result = await db.execute(select(Document).where(Document.deleted_at.is_(None)).order_by(Document.order, Document.created_at))
     return list(result.scalars().all())
 
 
 async def list_by_section(db: AsyncSession, section_id: str) -> List[Document]:
     result = await db.execute(
-        select(Document).where(Document.section_id == section_id).order_by(Document.order, Document.created_at)
+        select(Document).where(Document.section_id == section_id, Document.deleted_at.is_(None)).order_by(Document.order, Document.created_at)
     )
     return list(result.scalars().all())
 
@@ -76,7 +77,7 @@ async def list_by_section(db: AsyncSession, section_id: str) -> List[Document]:
 async def list_published(db: AsyncSession) -> List[Document]:
     result = await db.execute(
         select(Document)
-        .where(Document.is_published == True)
+        .where(Document.is_published == True, Document.deleted_at.is_(None))
         .order_by(Document.order, Document.created_at)
     )
     return list(result.scalars().all())
@@ -106,7 +107,7 @@ async def delete(db: AsyncSession, doc_id: str) -> bool:
     section = await get_section(db, doc.section_id)
     if section:
         await get_storage().delete_document(section.slug, doc.slug)
-    await db.delete(doc)
+    doc.deleted_at = utcnow()
     await db.commit()
     return True
 

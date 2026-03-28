@@ -32,7 +32,6 @@ function SortableRow({
   isExpanded,
   hasChildren,
   childCount,
-  isLocalAdmin,
   onToggle,
   onDelete,
 }: {
@@ -41,7 +40,6 @@ function SortableRow({
   isExpanded?: boolean
   hasChildren: boolean
   childCount: number
-  isLocalAdmin: boolean
   onToggle?: () => void
   onDelete: (id: string) => void
 }) {
@@ -110,15 +108,13 @@ function SortableRow({
           </button>
         </div>
 
-        {/* Right: delete — admin only */}
-        {isLocalAdmin && (
-          <button
-            onClick={() => onDelete(s.id)}
-            className="text-muted-foreground hover:text-red-500 transition-colors shrink-0 p-1"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        )}
+        {/* Right: delete */}
+        <button
+          onClick={() => onDelete(s.id)}
+          className="text-muted-foreground hover:text-red-500 transition-colors shrink-0 p-1"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     </div>
   )
@@ -140,8 +136,7 @@ export default function AdminSections() {
   // ── Data ───────────────────────────────────────────────────────────────────
   // Initialize share token for write operations
   useQuery({ queryKey: ['settings'], queryFn: api.settings.get })
-  const { data: meta } = useQuery({ queryKey: ['meta'], queryFn: api.meta.get, staleTime: Infinity })
-  const isLocalAdmin = meta?.is_local_access ?? false
+  useQuery({ queryKey: ['meta'], queryFn: api.meta.get, staleTime: Infinity })
 
   const { data: sections = [] } = useQuery({
     queryKey: ['sections'],
@@ -248,7 +243,6 @@ export default function AdminSections() {
                   isExpanded={isExpanded}
                   hasChildren={children.length > 0}
                   childCount={children.length}
-                  isLocalAdmin={isLocalAdmin}
                   onToggle={() => toggleExpanded(s.id)}
                   onDelete={id => remove.mutate(id)}
                 />
@@ -279,7 +273,10 @@ export default function AdminSections() {
             </p>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link to="/admin/trash"><Button variant="outline" size="sm">Trash</Button></Link>
+        </div>
       </div>
 
       {/* Two-panel layout */}

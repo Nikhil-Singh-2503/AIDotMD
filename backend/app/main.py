@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from app.db import init_db
 from app.config import get_settings
-from app.api import sections, documents, upload, nav, search, settings as settings_router, stream as stream_router, meta as meta_router
+from app.api import sections, documents, upload, nav, search, settings as settings_router, stream as stream_router, meta as meta_router, trash
 from app.services import settings_service
 from app.mcp.server import mcp
 
@@ -32,37 +32,47 @@ async def combined_lifespan(app: FastAPI):
 
 app = FastAPI(title="AIDotMd API", version="1.0.0", lifespan=combined_lifespan)
 
-# ── Share token middleware ─────────────────────────────────────────────────────
-# Protects write operations — requires a valid X-Share-Token header.
-# Read-only endpoints and the SSE stream remain fully public.
-
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Write paths that are exempt (SSE commits happen via POST but from the MCP agent
 # which has its own auth; /mcp/* is handled separately below)
 _WRITE_EXEMPT_PREFIXES = ("/api/v1/docs/",)  # SSE stream commits
 
+# Read paths that are completely public (for the public-facing documentation viewer)
+_PUBLIC_GET_PREFIXES = (
+    "/api/v1/nav/tree",
+    "/api/v1/search",
+    "/api/v1/documents/by-slug",
+    "/api/v1/meta"
+)
+
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 @app.middleware("http")
 async def share_token_middleware(request: Request, call_next):
-    if not (request.url.path.startswith("/api/v1/") and request.method in _WRITE_METHODS):
+    is_api = request.url.path.startswith("/api/v1/")
+    
+    # If not an API request, let it pass (static files, /mcp, etc)
+    if not is_api:
         return await call_next(request)
 
-    if any(request.url.path.startswith(p) for p in _WRITE_EXEMPT_PREFIXES):
+    # Exemption for specific write paths
+    if request.method in _WRITE_METHODS and any(request.url.path.startswith(p) for p in _WRITE_EXEMPT_PREFIXES):
         return await call_next(request)
 
+    # If it's a GET request, check if it's in the public whitelist
+    if request.method == "GET":
+        if any(request.url.path.startswith(p) for p in _PUBLIC_GET_PREFIXES):
+            return await call_next(request)
+
+    # For all other requests (unlisted GETs, and all non-exempt WRITEs), require auth:
     host = request.headers.get("host", "").split(":")[0]
     is_local = host in _LOCAL_HOSTS
 
-    # Local admin — full access including delete
+    # Local admin — full access
     if is_local:
         return await call_next(request)
 
-    # Non-local DELETE → admin-only, always block
-    if request.method == "DELETE":
-        return JSONResponse({"detail": "Unauthorized"}, status_code=401)
-
-    # Non-local non-DELETE → require valid share edit token
+    # Non-local → require valid share edit token
     stored = settings_service.get_share_token()
     token = request.headers.get("x-share-token", "")
     if not token or token != stored:
@@ -124,6 +134,7 @@ app.include_router(nav.router)
 app.include_router(search.router)
 app.include_router(settings_router.router)
 app.include_router(stream_router.router)
+app.include_router(trash.router)
 app.include_router(meta_router.router, prefix="/api/v1")
 
 
