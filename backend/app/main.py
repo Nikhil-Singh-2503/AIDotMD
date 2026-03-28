@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from app.db import init_db
 from app.config import get_settings
-from app.api import sections, documents, upload, nav, search, settings as settings_router, stream as stream_router, meta as meta_router
+from app.api import sections, documents, upload, nav, search, settings as settings_router, stream as stream_router, meta as meta_router, trash
 from app.services import settings_service
 from app.mcp.server import mcp
 
@@ -124,6 +124,7 @@ app.include_router(nav.router)
 app.include_router(search.router)
 app.include_router(settings_router.router)
 app.include_router(stream_router.router)
+app.include_router(trash.router)
 app.include_router(meta_router.router, prefix="/api/v1")
 
 

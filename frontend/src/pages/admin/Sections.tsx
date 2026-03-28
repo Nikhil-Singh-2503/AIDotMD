@@ -279,7 +279,10 @@ export default function AdminSections() {
             </p>
           </div>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link to="/admin/trash"><Button variant="outline" size="sm">Trash</Button></Link>
+        </div>
       </div>
 
       {/* Two-panel layout */}

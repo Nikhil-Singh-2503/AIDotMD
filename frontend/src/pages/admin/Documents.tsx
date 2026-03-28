@@ -135,6 +135,7 @@ export default function AdminDocuments() {
         <div className="flex flex-wrap items-center gap-2">
           <ThemeToggle />
           <Link to="/admin/sections"><Button variant="outline" size="sm">Manage Sections</Button></Link>
+          <Link to="/admin/trash"><Button variant="outline" size="sm">Trash</Button></Link>
           <Link to="/docs"><Button variant="outline" size="sm">View Docs</Button></Link>
           <Link to="/settings"><Button variant="outline" size="sm" className="gap-1.5"><Settings2 className="w-3.5 h-3.5" />Settings</Button></Link>
           <Link to="/admin/documents/new"><Button size="sm"><Plus className="w-4 h-4 mr-1" />New</Button></Link>
