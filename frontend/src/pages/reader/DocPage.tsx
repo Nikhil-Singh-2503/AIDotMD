@@ -58,18 +58,23 @@ export default function DocPage() {
     enabled: !!section && !!slug,
   })
 
-  const { data: settings } = useQuery({
-    queryKey: ['settings'],
-    queryFn: api.settings.get,
-    staleTime: Infinity,
-  })
-
   const { data: meta } = useQuery({
     queryKey: ['meta'],
     queryFn: api.meta.get,
     staleTime: Infinity,
   })
+
+  // Extract ?share_token= from URL on mount (for recipients with edit links)
+  useShareToken()
+
   const canEdit = meta?.is_local_access || Boolean(getShareToken())
+
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: api.settings.get,
+    staleTime: Infinity,
+    enabled: canEdit,
+  })
 
   // ── Connect to SSE stream ─────────────────────────────────────────────────
 

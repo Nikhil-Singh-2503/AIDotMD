@@ -26,12 +26,10 @@ import { CSS } from '@dnd-kit/utilities'
 function SortableRow({
   doc,
   sectionName,
-  isLocalAdmin,
   onDelete,
 }: {
   doc: Document
   sectionName: string
-  isLocalAdmin: boolean
   onDelete: (id: string) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -74,11 +72,9 @@ function SortableRow({
           <Link to={`/admin/documents/${doc.id}`}>
             <Button variant="ghost" size="sm"><Pencil className="w-4 h-4" /></Button>
           </Link>
-          {isLocalAdmin && (
-            <Button variant="ghost" size="sm" onClick={() => onDelete(doc.id)}>
-              <Trash2 className="w-4 h-4 text-red-500" />
-            </Button>
-          )}
+          <Button variant="ghost" size="sm" onClick={() => onDelete(doc.id)}>
+            <Trash2 className="w-4 h-4 text-red-500" />
+          </Button>
         </div>
       </td>
     </tr>
@@ -89,8 +85,7 @@ export default function AdminDocuments() {
   const qc = useQueryClient()
   // Initialize share token for write operations
   useQuery({ queryKey: ['settings'], queryFn: api.settings.get })
-  const { data: meta } = useQuery({ queryKey: ['meta'], queryFn: api.meta.get, staleTime: Infinity })
-  const isLocalAdmin = meta?.is_local_access ?? false
+  useQuery({ queryKey: ['meta'], queryFn: api.meta.get, staleTime: Infinity })
   const [sectionFilter, setSectionFilter] = useState<string>('all')
   const { data: sections = [] } = useQuery({ queryKey: ['sections'], queryFn: api.sections.list })
   const { data: docs = [] } = useQuery({
@@ -178,7 +173,6 @@ export default function AdminDocuments() {
                       key={doc.id}
                       doc={doc}
                       sectionName={sectionMap[doc.section_id]?.title ?? '-'}
-                      isLocalAdmin={isLocalAdmin}
                       onDelete={id => remove.mutate(id)}
                     />
                   ))}
@@ -209,11 +203,9 @@ export default function AdminDocuments() {
                       <Link to={`/admin/documents/${doc.id}`}>
                         <Button variant="ghost" size="sm"><Pencil className="w-4 h-4" /></Button>
                       </Link>
-                      {isLocalAdmin && (
-                        <Button variant="ghost" size="sm" onClick={() => remove.mutate(doc.id)}>
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      )}
+                      <Button variant="ghost" size="sm" onClick={() => remove.mutate(doc.id)}>
+                        <Trash2 className="w-4 h-4 text-red-500" />
+                      </Button>
                     </div>
                   </td>
                 </tr>
