@@ -33,35 +33,17 @@
 
 ---
 
-## The Problem
+## Why AIDotMd?
 
-Every developer using AI tools runs into the same wall:
+Every developer using AI tools runs into the same wall. Here is how AIDotMd fixes it:
 
-| Pain | What usually happens |
-|------|----------------------|
-| 💸 **Vendor lock-in** | Notion, Confluence, GitBook store your data on their servers — paid plans, no control over where your knowledge lives |
-| 🧠 **Research evaporates** | You spend hours researching in Cursor, Claude Code, or Claude Desktop — then the session ends and it's gone |
-| 📁 **No organized view** | Even if you save `.md` files locally, there's no way to view them together — you open files one by one |
-| 🔗 **Sharing is a hassle** | To share a doc you paste it into Google Docs, Drive, or Loop — manually, every single time |
+| 🚨 The Pain | ❌ What usually happens | ✅ How AIDotMd fixes it |
+|---|---|---|
+| 💸 **Vendor lock-in** | Notion, Confluence, GitBook store your data on their servers — paid plans, no control. | **Fully self-hosted** — SQLite on your machine, optional S3/R2. Your data never leaves your infrastructure. |
+| 🧠 **Research evaporates** | You spend hours researching in Cursor or Claude — then the session ends and the context is gone. | **AI agents write directly to AIDotMd** via MCP — automatically, in real-time, no copy-paste. |
+| 📁 **No organized view** | Even if you save `.md` files locally, there's no way to view them together. | **Section-based knowledge base** with a clean reader — all your docs organized in one place, with search. |
+| 🔗 **Sharing is a hassle** | To share a doc you paste it into Google Docs, Drive, or Loop — manually, every time. | **One-click Copy Link + PDF export.** Set a public URL once, share forever — no pasting. |
 
----
-
-## How AIDotMd Solves It
-
-| Problem | How AIDotMd fixes it |
-|---------|----------------------|
-| 💸 Vendor lock-in | Fully self-hosted — SQLite on your own machine, optional S3/R2. Your data never leaves your infrastructure |
-| 🧠 Research evaporates | AI agents (Claude, Cursor, Windsurf) write directly to AIDotMd via MCP — automatically, in real-time, no copy-paste |
-| 📁 No organized view | Section-based knowledge base with a clean reader — all your docs organized in one place, with search |
-| 🔗 Sharing is a hassle | One-click Copy Link + PDF export. Set a public URL once, share forever — no Drive, no Loop, no pasting |
-
-```
-AI Agent (Claude / Cursor / Windsurf)
-    │
-    ├── stream_write("# Redis Commands\n...")   ← appears live in browser, word by word
-    ├── stream_write("Redis supports 5 core data types...\n")
-    └── commit_stream()                          ← saved to your local database
-```
 
 ---
 
