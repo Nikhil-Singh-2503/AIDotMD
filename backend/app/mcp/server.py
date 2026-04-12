@@ -61,19 +61,21 @@ async def list_sections() -> list[dict]:
 
 
 @mcp.tool
-async def create_section(title: str, description: str = "") -> dict:
+async def create_section(title: str, description: str = "", parent_id: str = "") -> dict:
     """
-    Create a new top-level section.
+    Create a new section. Can be top-level or nested under a parent section.
 
     Args:
         title: The section title (e.g. "Redis Patterns")
         description: Optional short description
+        parent_id: ID of the parent section (if any)
+        Leave empty to create a top-level section. Use list_sections to find section IDs.
     """
     async with SessionLocal() as db:
         section = await section_service.create(
-            db, SectionCreate(title=title, description=description or None)
+            db, SectionCreate(title=title, description=description or None, parent_id=parent_id or None)
         )
-        return {"id": section.id, "title": section.title, "slug": section.slug}
+        return {"id": section.id, "title": section.title, "slug": section.slug, "parent_id": section.parent_id or ""}
 
 
 # ── Document tools ────────────────────────────────────────────────────────────
