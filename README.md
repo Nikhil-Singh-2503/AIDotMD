@@ -74,7 +74,7 @@ Everything you need to capture, organize, and share AI-generated knowledge — w
 **One command. Full stack. Ready in under a minute.**
 
 ```bash
-git clone https://github.com/your-username/aidotmd.git
+git clone https://github.com/Nikhil-Singh-2503/aidotmd.git
 cd aidotmd
 docker-compose up --build
 ```
