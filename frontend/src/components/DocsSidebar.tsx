@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { api, type NavNode } from '@/api/client'
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, BookOpen, X } from 'lucide-react'
+import { BookOpen, X, Folder, FolderOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface SectionNodeProps {
@@ -21,7 +21,7 @@ function SectionNode({ node, depth = 0 }: SectionNodeProps) {
       <button
         onClick={() => setOpen(o => !o)}
         className={cn(
-          'flex items-center justify-between w-full rounded transition-colors',
+          'flex items-center w-full rounded transition-colors',
           'hover:bg-accent hover:text-accent-foreground',
           depth === 0
             ? 'px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground'
@@ -29,10 +29,10 @@ function SectionNode({ node, depth = 0 }: SectionNodeProps) {
         )}
         style={depth > 0 ? { paddingLeft: `${depth * 12 + 8}px` } : undefined}
       >
-        <span>{node.title}</span>
         {hasContent && (
-          open ? <ChevronDown className="w-3 h-3 shrink-0" /> : <ChevronRight className="w-3 h-3 shrink-0" />
+          open ? <FolderOpen className="w-3 h-3 shrink-0 mr-1" /> : <Folder className="w-3 h-3 shrink-0 mr-1" />
         )}
+        <span>{node.title}</span>
       </button>
 
       {open && (
