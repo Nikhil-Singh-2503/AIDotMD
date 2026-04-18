@@ -126,7 +126,7 @@ export const api = {
       request<{ success: boolean; message: string }>('/settings/test-storage', { method: 'POST', body: JSON.stringify(data) }),
   },
   meta: {
-    get: () => request<{ is_local_access: boolean }>('/meta'),
+    get: () => request<{ is_local_access: boolean; version?: string }>('/meta'),
   },
   upload: {
     markdown: (section_id: string, file: File) => {

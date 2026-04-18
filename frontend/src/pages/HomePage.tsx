@@ -456,7 +456,7 @@ function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 pt-6 border-t border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <span className="text-xs text-muted-foreground">AIDotMd &copy; {new Date().getFullYear()}</span>
-          <span className="text-xs text-muted-foreground">Built with ♥ and Markdown</span>
+          <span className="text-xs text-muted-foreground">Built with ♥ for Markdown</span>
         </div>
       </div>
     </footer>

@@ -1,12 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { api, type Section, type Document } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, RefreshCw, Trash2, X, AlertTriangle } from 'lucide-react'
-import { ThemeToggle } from '@/components/ThemeToggle'
+import { RefreshCw, Trash2, X, AlertTriangle } from 'lucide-react'
 
 function TrashItemRow({ 
   item, 
@@ -85,22 +83,23 @@ export default function AdminTrash() {
   const isEmpty = sections.length === 0 && documents.length === 0
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Link to="/admin">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold">Trash</h1>
-            <p className="text-xs text-muted-foreground">
-              Restore soft-deleted items or delete them permanently
-            </p>
-          </div>
+    <div className="max-w-4xl mx-auto space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Trash</h1>
+          <p className="text-sm text-muted-foreground">
+            Restore soft-deleted items or delete them permanently
+          </p>
         </div>
-        <ThemeToggle />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => qc.invalidateQueries({ queryKey: ['trash'] })}
+          className="self-start"
+        >
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
       </div>
 
       {isEmpty ? (

@@ -1,14 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, type Section } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Trash2, GripVertical, ChevronRight, Plus, ArrowLeft } from 'lucide-react'
-import { ThemeToggle } from '@/components/ThemeToggle'
+import { Trash2, GripVertical, ChevronRight, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DndContext,
@@ -259,24 +257,17 @@ export default function AdminSections() {
     <div className="max-w-4xl mx-auto px-4 py-6">
 
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Link to="/admin">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold">Manage Sections</h1>
-            <p className="text-xs text-muted-foreground">
-              {sections.length} section{sections.length !== 1 ? 's' : ''} · drag to reorder
-            </p>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Sections</h1>
+          <p className="text-sm text-muted-foreground">
+            {sections.length} section{sections.length !== 1 ? 's' : ''} · drag to reorder
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Link to="/admin/trash"><Button variant="outline" size="sm">Trash</Button></Link>
-        </div>
+        <Button>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Section
+        </Button>
       </div>
 
       {/* Two-panel layout */}

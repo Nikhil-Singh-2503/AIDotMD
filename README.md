@@ -66,6 +66,7 @@ Everything you need to capture, organize, and share AI-generated knowledge — w
 | 🌐 | **Share anywhere** | Configure a public URL (Cloudflare, ngrok, etc.) and Copy Link always works |
 | 🖨️ | **PDF export** | Print any doc to PDF directly from the browser — clean, styled output |
 | 🚇 | **Cloudflare Tunnel** | Built-in tunnel service — share your local docs with a public URL instantly |
+| 🔄 | **Auto-updates** | Check for new versions from GitHub with deployment-aware instructions |
 
 ---
 
@@ -132,6 +133,28 @@ Each doc has three action buttons in the top-right corner:
 | 🔗 **Copy Link** | Copies the shareable URL (uses public URL if configured) |
 | 🖨️ **Print / Save as PDF** | Opens the browser print dialog — choose "Save as PDF" for a clean PDF |
 | ✏️ **Edit** | Opens the admin editor for that document |
+| 🔄 **Check Updates** | Check for new versions and view changelog directly from admin dashboard |
+
+### Auto-Update System
+
+AIDotMd includes a built-in update checker that helps you stay current:
+
+| Feature | Description |
+|---------|-------------|
+| **Version Display** | Current version shown in sidebar and dashboard |
+| **Update Check** | Manual check button in admin dashboard |
+| **Changelog** | View release notes directly in the app |
+| **Deployment-Aware** | Shows Docker or Source update commands based on your deployment |
+| **Auto-Check** | Optional hourly background checks |
+| **Settings** | Toggle auto-checks and include prereleases |
+
+To check for updates, go to **Admin → Updates** in the admin panel.
+
+The system checks GitHub releases and provides:
+- Current vs latest version comparison
+- Major/minor update indicators
+- Deployment-specific update instructions (docker-compose vs git commands)
+- Link to full changelog on GitHub
 
 ### Draft vs. Published
 
@@ -281,6 +304,9 @@ All config can be set via environment variables in `docker-compose.yml` or throu
 | `S3_SECRET_ACCESS_KEY` | _(empty)_ | S3 secret access key |
 | `S3_ENDPOINT_URL` | _(empty)_ | Custom endpoint for R2/MinIO |
 | `MCP_API_KEY` | _(auto-generated)_ | API key for MCP authentication |
+| `AIDOTMD_DEPLOYMENT` | _(auto-detected)_ | Override deployment type: `docker` or `source` |
+
+> **Version & Updates** — The `VERSION` field is set at build time in the container and is not configurable via environment variables. The update system automatically detects whether you're running via Docker or source and shows appropriate update commands.
 
 ### Storage: Local Filesystem
 

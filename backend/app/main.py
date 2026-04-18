@@ -6,7 +6,18 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from app.db import init_db
 from app.config import get_settings
-from app.api import sections, documents, upload, nav, search, settings as settings_router, stream as stream_router, meta as meta_router, trash
+from app.api import (
+    sections,
+    documents,
+    upload,
+    nav,
+    search,
+    settings as settings_router,
+    stream as stream_router,
+    meta as meta_router,
+    trash,
+    updates as updates_router,
+)
 from app.services import settings_service
 from app.mcp.server import mcp
 
@@ -42,7 +53,7 @@ _PUBLIC_GET_PREFIXES = (
     "/api/v1/nav/tree",
     "/api/v1/search",
     "/api/v1/documents/by-slug",
-    "/api/v1/meta"
+    "/api/v1/meta",
 )
 
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
@@ -56,7 +67,9 @@ async def share_token_middleware(request: Request, call_next):
         return await call_next(request)
 
     # Exemption for specific write paths
-    if request.method in _WRITE_METHODS and any(request.url.path.startswith(p) for p in _WRITE_EXEMPT_PREFIXES):
+    if request.method in _WRITE_METHODS and any(
+        request.url.path.startswith(p) for p in _WRITE_EXEMPT_PREFIXES
+    ):
         return await call_next(request)
 
     # If it's a GET request, check if it's in the public whitelist
@@ -98,7 +111,9 @@ async def mcp_auth_middleware(request: Request, call_next):
 
         if not token:
             return JSONResponse(
-                {"error": "Unauthorized — provide Authorization: Bearer <key> header or ?api_key=<key>"},
+                {
+                    "error": "Unauthorized — provide Authorization: Bearer <key> header or ?api_key=<key>"
+                },
                 status_code=401,
             )
         if not stored_key or token != stored_key:
@@ -136,6 +151,7 @@ app.include_router(settings_router.router)
 app.include_router(stream_router.router)
 app.include_router(trash.router)
 app.include_router(meta_router.router, prefix="/api/v1")
+app.include_router(updates_router.router, prefix="/api/v1")
 
 
 @app.get("/health")
