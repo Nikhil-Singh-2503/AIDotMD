@@ -1,12 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api, type Document } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useState } from 'react'
-import { Pencil, Trash2, Plus, BookOpen, Settings2, GripVertical } from 'lucide-react'
-import { ThemeToggle } from '@/components/ThemeToggle'
+import { Pencil, Trash2, Plus, GripVertical } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -83,7 +82,7 @@ function SortableRow({
 
 export default function AdminDocuments() {
   const qc = useQueryClient()
-  // Initialize share token for write operations
+  const navigate = useNavigate()
   useQuery({ queryKey: ['settings'], queryFn: api.settings.get })
   useQuery({ queryKey: ['meta'], queryFn: api.meta.get, staleTime: Infinity })
   const [sectionFilter, setSectionFilter] = useState<string>('all')
@@ -124,17 +123,16 @@ export default function AdminDocuments() {
   const isDraggable = sectionFilter !== 'all'
 
   return (
-    <div className="p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <Link to="/"><h1 className="text-2xl font-bold flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer"><BookOpen className="w-6 h-6" /> AIDotMd</h1></Link>
-        <div className="flex flex-wrap items-center gap-2">
-          <ThemeToggle />
-          <Link to="/admin/sections"><Button variant="outline" size="sm">Manage Sections</Button></Link>
-          <Link to="/admin/trash"><Button variant="outline" size="sm">Trash</Button></Link>
-          <Link to="/docs"><Button variant="outline" size="sm">View Docs</Button></Link>
-          <Link to="/settings"><Button variant="outline" size="sm" className="gap-1.5"><Settings2 className="w-3.5 h-3.5" />Settings</Button></Link>
-          <Link to="/admin/documents/new"><Button size="sm"><Plus className="w-4 h-4 mr-1" />New</Button></Link>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Documents</h1>
+          <p className="text-muted-foreground">Manage your documents</p>
         </div>
+        <Button onClick={() => navigate('/admin/documents/new')}>
+          <Plus className="mr-2 h-4 w-4" />
+          New Document
+        </Button>
       </div>
 
       <div className="flex items-center gap-3 mb-4">

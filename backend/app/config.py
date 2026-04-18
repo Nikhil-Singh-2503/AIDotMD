@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     # MCP API key (auto-generated on first startup, stored in data/aidotmd.config.json)
     MCP_API_KEY: str = ""
 
+    # Update system - hardcoded values (not overridden by .env)
+    VERSION: str = "1.0.0"
+    BUILD: str = ""
+    GITHUB_REPO: str = "Nikhil-Singh-2503/AIDotMD"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]

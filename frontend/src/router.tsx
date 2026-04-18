@@ -1,23 +1,41 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Outlet } from 'react-router-dom'
 import AdminDocuments from './pages/admin/Documents'
 import AdminDocumentEdit from './pages/admin/DocumentEdit'
 import AdminSections from './pages/admin/Sections'
 import AdminTrash from './pages/admin/Trash'
+import AdminDashboard from './pages/admin/Dashboard'
+import AdminUpdates from './pages/admin/Updates'
 import DocsLayout from './pages/reader/DocsLayout'
 import DocPage from './pages/reader/DocPage'
 import DocsIndex from './pages/reader/DocsIndex'
 import HomePage from './pages/HomePage'
 import Settings from './pages/Settings'
 import { AdminGuard } from './components/AdminGuard'
+import { AdminLayout } from './components/admin/AdminLayout'
+
+function AdminPages() {
+  return (
+    <AdminLayout>
+      <Outlet />
+    </AdminLayout>
+  )
+}
 
 export const router = createBrowserRouter([
   { path: '/', element: <HomePage /> },
-  { path: '/settings', element: <Settings /> },
-  { path: '/admin', element: <AdminGuard><AdminDocuments /></AdminGuard> },
-  { path: '/admin/sections', element: <AdminGuard><AdminSections /></AdminGuard> },
-  { path: '/admin/trash', element: <AdminGuard><AdminTrash /></AdminGuard> },
-  { path: '/admin/documents/new', element: <AdminGuard><AdminDocumentEdit /></AdminGuard> },
-  { path: '/admin/documents/:id', element: <AdminGuard><AdminDocumentEdit /></AdminGuard> },
+  {
+    element: <AdminGuard><AdminPages /></AdminGuard>,
+    children: [
+      { path: '/admin', element: <AdminDashboard /> },
+      { path: '/admin/documents', element: <AdminDocuments /> },
+      { path: '/admin/sections', element: <AdminSections /> },
+      { path: '/admin/trash', element: <AdminTrash /> },
+      { path: '/admin/updates', element: <AdminUpdates /> },
+      { path: '/admin/documents/new', element: <AdminDocumentEdit /> },
+      { path: '/admin/documents/:id', element: <AdminDocumentEdit /> },
+      { path: '/settings', element: <Settings /> },
+    ],
+  },
   {
     path: '/docs',
     element: <DocsLayout />,
