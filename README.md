@@ -465,10 +465,55 @@ aidotmd/
 
 Contributions are welcome! Please open an issue first to discuss what you'd like to change.
 
-1. Fork the repo
-2. Create a branch: `git checkout -b feat/your-feature`
-3. Commit your changes
-4. Push and open a Pull Request
+### Submitting a Pull Request
+
+When submitting a PR, please use our [Pull Request Template](.github/PULL_REQUEST_TEMPLATE.md):
+
+```bash
+# 1. Fork the repo
+# 2. Clone your fork
+git clone https://github.com/Nikhil-Singh-2503/aidotmd.git
+cd aidotmd
+
+# 3. Create a feature branch
+git checkout -b feature/your-feature-name
+
+# 4. Make changes and commit
+# Follow Conventional Commits: feat/, fix/, docs/, etc.
+git commit -m "feat: add awesome new feature"
+
+# 5. Push and create PR
+git push -u origin feature/your-feature-name
+```
+
+### Pull Request Checklist
+
+Before submitting, ensure:
+
+- [ ] Code follows project conventions
+- [ ] Self-review performed
+- [ ] Comments added for complex logic
+- [ ] Documentation updated (if needed)
+- [ ] Build passes: `npm run build` (frontend) / tests pass
+- [ ] Screenshots added for UI changes
+
+### PR Title Format
+
+Use [Conventional Commits](https://www.conventionalcommits.org/):
+
+```
+feat(admin): add new dashboard feature
+fix(search): resolve empty results issue
+docs(readme): update installation steps
+refactor(api): simplify document service
+```
+
+### Reporting Issues
+
+- Use GitHub Issues
+- Include reproduction steps
+- Add screenshots if UI-related
+- Tag appropriately (bug, feature, enhancement)
 
 ---
 
