@@ -57,7 +57,7 @@ export default function UpdatesPage() {
         if (!res.ok) throw new Error('Failed to fetch version')
         return res.json()
       } catch {
-        return { version: '1.0.0', deployment: 'source' }
+        return { version: 'Unknown', deployment: 'source' }
       }
     },
     staleTime: 1000 * 60 * 60,
@@ -73,8 +73,8 @@ export default function UpdatesPage() {
         return res.json()
       } catch {
         return {
-          current: versionInfo?.version || '1.0.0',
-          latest: versionInfo?.version || '1.0.0',
+          current: versionInfo?.version || 'Unknown',
+          latest: versionInfo?.version || 'Unknown',
           update_available: false,
           is_major: false,
           last_checked: new Date().toISOString(),

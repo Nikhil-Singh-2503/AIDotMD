@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { MarkdownEditor } from '@/components/MarkdownEditor'
+import { useToast } from '@/hooks/useToast'
 import { ArrowLeft, Upload } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { VersionHistoryModal } from '@/components/VersionHistoryModal'
@@ -17,6 +18,7 @@ export default function AdminDocumentEdit() {
   const { id } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { toast } = useToast()
   const isNew = !id
   const fileRef = useRef<HTMLInputElement>(null)
   const mdFileRef = useRef<HTMLInputElement>(null)
@@ -46,7 +48,12 @@ export default function AdminDocumentEdit() {
 
   const save = useMutation({
     mutationFn: () => isNew ? api.documents.create(form) : api.documents.update(id!, form),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['documents'] }); navigate('/admin') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] })
+      toast({ title: isNew ? 'Document created' : 'Document saved', variant: 'success' })
+      navigate('/admin')
+    },
+    onError: (err: any) => toast({ title: 'Failed to save', description: err.message, variant: 'error' }),
   })
 
   const uploadImg = useMutation({
@@ -54,7 +61,9 @@ export default function AdminDocumentEdit() {
     onSuccess: (data) => {
       setUploadedImageUrl(data.url)
       setForm(f => ({ ...f, content: f.content + `\n![image](${data.url})` }))
+      toast({ title: 'Image uploaded', variant: 'success' })
     },
+    onError: (err: any) => toast({ title: 'Image upload failed', description: err.message, variant: 'error' }),
   })
 
   return (

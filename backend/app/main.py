@@ -41,7 +41,7 @@ async def combined_lifespan(app: FastAPI):
         yield
 
 
-app = FastAPI(title="AIDotMd API", version="1.0.0", lifespan=combined_lifespan)
+app = FastAPI(title="AIDotMd API", version=_settings.VERSION, lifespan=combined_lifespan)
 
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Write paths that are exempt (SSE commits happen via POST but from the MCP agent

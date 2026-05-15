@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { useToast } from '@/hooks/useToast'
 import { Trash2, GripVertical, ChevronRight, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -122,6 +123,7 @@ type FlatSection = { section: Section; depth: number }
 
 export default function AdminSections() {
   const qc = useQueryClient()
+  const { toast } = useToast()
 
   // ── Form state ─────────────────────────────────────────────────────────────
   const [newTitle, setNewTitle] = useState('')
@@ -165,18 +167,27 @@ export default function AdminSections() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sections'] })
       setNewTitle('')
-      // Keep newParentId as-is (spec: clear title only on success)
+      toast({ title: 'Section created', variant: 'success' })
     },
+    onError: (err: any) => toast({ title: 'Failed to create section', description: err.message, variant: 'error' }),
   })
 
   const remove = useMutation({
     mutationFn: (id: string) => api.sections.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sections'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sections'] })
+      toast({ title: 'Section moved to trash', variant: 'success' })
+    },
+    onError: (err: any) => toast({ title: 'Failed to delete section', description: err.message, variant: 'error' }),
   })
 
   const reorder = useMutation({
     mutationFn: (ids: string[]) => api.sections.reorder(ids),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sections'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sections'] })
+      toast({ title: 'Order updated', variant: 'success' })
+    },
+    onError: (err: any) => toast({ title: 'Failed to reorder', description: err.message, variant: 'error' }),
   })
 
   // ── DnD ────────────────────────────────────────────────────────────────────

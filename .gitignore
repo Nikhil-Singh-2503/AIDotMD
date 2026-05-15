@@ -19,6 +19,7 @@ backend/alembic/versions/__pycache__/
 # Data dirs (generated at runtime — contains secrets + uploads)
 backend/data/
 data/
+plans/
 
 # Node
 frontend/node_modules/

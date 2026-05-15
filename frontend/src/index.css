@@ -174,6 +174,15 @@
   background-size: 28px 28px;
 }
 
+/* ─── Toast slide-in animation ─── */
+@keyframes in-slide {
+  from { opacity: 0; transform: translateX(100%) scale(0.95); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+.animate-in-slide {
+  animation: in-slide 0.25s ease-out both;
+}
+
 /* ─── Scroll fade-in ─── */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(20px); }

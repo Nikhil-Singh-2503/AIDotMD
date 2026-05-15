@@ -23,8 +23,8 @@ class Settings(BaseSettings):
     # MCP API key (auto-generated on first startup, stored in data/aidotmd.config.json)
     MCP_API_KEY: str = ""
 
-    # Update system - hardcoded values (not overridden by .env)
-    VERSION: str = "1.0.0"
+    # Update system - overridden by .env if provided
+    VERSION: str = "1.1.0"
     BUILD: str = ""
     GITHUB_REPO: str = "Nikhil-Singh-2503/AIDotMD"
 
