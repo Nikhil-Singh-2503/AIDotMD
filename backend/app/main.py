@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from app.db import init_db
+from app.db import init_db, SessionLocal
 from app.config import get_settings
 from app.api import (
     sections,
@@ -17,8 +17,10 @@ from app.api import (
     meta as meta_router,
     trash,
     updates as updates_router,
+    auth as auth_router,
+    admin_users,
 )
-from app.services import settings_service
+from app.services import settings_service, auth_service, user_service
 from app.mcp.server import mcp
 
 _settings = get_settings()
@@ -36,6 +38,12 @@ async def combined_lifespan(app: FastAPI):
     Path(_settings.DATA_DIR).mkdir(parents=True, exist_ok=True)
     settings_service.ensure_mcp_key()
     settings_service.ensure_share_token()
+
+    # Ensure admin user (first-run) and MCP service account
+    async with SessionLocal() as db:
+        await user_service.ensure_admin_user(db)
+        await user_service.ensure_mcp_user(db)
+
     # Start fastmcp's internal session manager / task groups
     async with mcp_app.lifespan(mcp_app):
         yield
@@ -59,39 +67,59 @@ _PUBLIC_GET_PREFIXES = (
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 @app.middleware("http")
-async def share_token_middleware(request: Request, call_next):
-    is_api = request.url.path.startswith("/api/v1/")
-    
-    # If not an API request, let it pass (static files, /mcp, etc)
-    if not is_api:
+async def auth_middleware(request: Request, call_next):
+    api_path = request.url.path
+
+    # Public paths — no auth required
+    if api_path.startswith("/api/v1/auth/login") or api_path.startswith("/api/v1/auth/me"):
         return await call_next(request)
 
-    # Exemption for specific write paths
-    if request.method in _WRITE_METHODS and any(
-        request.url.path.startswith(p) for p in _WRITE_EXEMPT_PREFIXES
+    # Non-API paths — let through (static, MCP, etc)
+    if not api_path.startswith("/api/v1/"):
+        return await call_next(request)
+
+    # Public GET endpoints
+    if request.method == "GET" and any(
+        api_path.startswith(p) for p in _PUBLIC_GET_PREFIXES
     ):
         return await call_next(request)
 
-    # If it's a GET request, check if it's in the public whitelist
-    if request.method == "GET":
-        if any(request.url.path.startswith(p) for p in _PUBLIC_GET_PREFIXES):
-            return await call_next(request)
-
-    # For all other requests (unlisted GETs, and all non-exempt WRITEs), require auth:
-    host = request.headers.get("host", "").split(":")[0]
-    is_local = host in _LOCAL_HOSTS
-
-    # Local admin — full access
-    if is_local:
+    # Auth endpoints (register, change-password, logout) require a valid user
+    if api_path.startswith("/api/v1/auth/"):
         return await call_next(request)
 
-    # Non-local → require valid share edit token
-    stored = settings_service.get_share_token()
-    token = request.headers.get("x-share-token", "")
-    if not token or token != stored:
-        return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    # Admin user endpoints
+    if api_path.startswith("/api/v1/admin/users"):
+        return await call_next(request)
 
-    return await call_next(request)
+    # Check for valid session token
+    auth_header = request.headers.get("authorization", "")
+    token = ""
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()
+    if not token:
+        token = request.cookies.get("aidotmd_session", "")
+
+    if token:
+        async with SessionLocal() as db:
+            session = await auth_service.get_session_by_token(db, token)
+            if session:
+                user = await user_service.get_by_id(db, session.user_id)
+                if user and user.is_active:
+                    request.state.user = user
+                    return await call_next(request)
+
+    # Fall back to share token (backward compatibility for remote editors)
+    host = request.headers.get("host", "").split(":")[0]
+    if host in _LOCAL_HOSTS:
+        return await call_next(request)
+
+    stored_share = settings_service.get_share_token()
+    share_token = request.headers.get("x-share-token", "")
+    if share_token and share_token == stored_share:
+        return await call_next(request)
+
+    return JSONResponse({"detail": "Unauthorized"}, status_code=401)
 
 
 # ── MCP auth middleware ────────────────────────────────────────────────────────
@@ -152,6 +180,8 @@ app.include_router(stream_router.router)
 app.include_router(trash.router)
 app.include_router(meta_router.router, prefix="/api/v1")
 app.include_router(updates_router.router, prefix="/api/v1")
+app.include_router(auth_router.router)
+app.include_router(admin_users.router)
 
 
 @app.get("/health")

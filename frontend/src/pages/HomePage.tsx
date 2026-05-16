@@ -2,10 +2,17 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, FileText, Layers, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { useAuth } from '@/hooks/useAuth'
 
 // ─── Navbar ────────────────────────────────────────────────────────────────────
 
 function Navbar() {
+  const { user } = useAuth()
+
+  const dashboardLink = user?.role === 'admin' ? '/admin' : '/my-dashboard'
+  const dashboardLabel = user?.role === 'admin' ? 'Admin' : 'Dashboard'
+  const getStartedLink = user ? '/docs' : '/login'
+
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-background/90 backdrop-blur-md border-b border-border">
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
@@ -18,13 +25,15 @@ function Navbar() {
               Docs
             </Button>
           </Link>
-          <Link to="/admin" className="hidden sm:block">
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-              Admin
-            </Button>
-          </Link>
+          {user && (
+            <Link to={dashboardLink} className="hidden sm:block">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                {dashboardLabel}
+              </Button>
+            </Link>
+          )}
           <ThemeToggle />
-          <Link to="/docs" className="ml-1">
+          <Link to={getStartedLink} className="ml-1">
             <Button size="sm" className="gap-1.5">
               Get Started <ArrowRight className="w-3.5 h-3.5" />
             </Button>
@@ -38,6 +47,11 @@ function Navbar() {
 // ─── Hero ──────────────────────────────────────────────────────────────────────
 
 function Hero() {
+  const { user } = useAuth()
+
+  const dashboardLink = user?.role === 'admin' ? '/admin' : '/my-dashboard'
+  const getStartedLink = user ? '/docs' : '/login'
+
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden w-full">
       {/* Dot grid background */}
@@ -67,16 +81,18 @@ function Hero() {
 
         {/* CTAs */}
         <div className="animate-fade-up-delay-3 flex flex-col sm:flex-row items-center justify-center gap-3 mb-16">
-          <Link to="/docs">
+          <Link to={getStartedLink}>
             <Button size="lg" className="gap-2 h-11 px-6">
               Get Started <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>
-          <Link to="/admin">
-            <Button variant="outline" size="lg" className="h-11 px-6">
-              Open Admin
-            </Button>
-          </Link>
+          {user && (
+            <Link to={dashboardLink}>
+              <Button variant="outline" size="lg" className="h-11 px-6">
+                {user.role === 'admin' ? 'Open Admin' : 'My Dashboard'}
+              </Button>
+            </Link>
+          )}
         </div>
 
         {/* Mock visual */}
@@ -380,6 +396,8 @@ function HowItWorks() {
 // ─── CTA Banner ────────────────────────────────────────────────────────────────
 
 function CTABanner() {
+  const { user } = useAuth()
+
   return (
     <section className="py-32 px-6 border-t border-border">
       <div className="relative max-w-5xl mx-auto rounded-2xl border border-border bg-muted/20 overflow-hidden">
@@ -392,16 +410,18 @@ function CTABanner() {
             AIDotMd is free, open-source, and runs with a single command. Your docs, your data, your way.
           </p>
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link to="/admin">
-              <Button size="lg" className="gap-2 h-11 px-6">
-                Open Admin <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
             <Link to="/docs">
-              <Button variant="outline" size="lg" className="h-11 px-6">
-                View Docs
+              <Button size="lg" className="gap-2 h-11 px-6">
+                View Docs <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
+            {user && (
+              <Link to={user.role === 'admin' ? '/admin' : '/my-dashboard'}>
+                <Button variant="outline" size="lg" className="h-11 px-6">
+                  {user.role === 'admin' ? 'Open Admin' : 'My Dashboard'}
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </div>
@@ -412,6 +432,8 @@ function CTABanner() {
 // ─── Footer ────────────────────────────────────────────────────────────────────
 
 function Footer() {
+  const { user } = useAuth()
+
   return (
     <footer className="border-t border-border px-6 pb-8">
       <div className="max-w-5xl mx-auto">
@@ -435,11 +457,20 @@ function Footer() {
                   Documentation
                 </Link>
               </li>
-              <li>
-                <Link to="/admin" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  Admin Panel
-                </Link>
-              </li>
+              {user && user.role === 'admin' && (
+                <li>
+                  <Link to="/admin" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    Admin Panel
+                  </Link>
+                </li>
+              )}
+              {user && user.role !== 'admin' && (
+                <li>
+                  <Link to="/my-dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    My Dashboard
+                  </Link>
+                </li>
+              )}
             </ul>
           </div>
 

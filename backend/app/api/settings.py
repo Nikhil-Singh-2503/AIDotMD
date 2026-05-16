@@ -1,9 +1,9 @@
 from typing import Optional
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, Depends
 from pydantic import BaseModel
 
 from app.config import get_settings
-from app.services import settings_service
+from app.services import settings_service, permission_service
 
 router = APIRouter(prefix="/api/v1", tags=["settings"])
 
@@ -50,10 +50,15 @@ class TestStorageResponse(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/settings", response_model=SettingsResponse)
-async def get_settings_endpoint():
-    """Return current configuration (secrets masked)."""
+async def get_settings_endpoint(request: Request):
+    """Return current configuration (masks MCP key for non-admin users)."""
     env = get_settings()
     cfg = settings_service.read_config()
+
+    user = getattr(request.state, "user", None)
+    show_full = user is None or user.role in ("admin", "editor")
+    mcp_key = settings_service.get_mcp_key()
+    share_token = settings_service.get_share_token()
 
     def _get(key: str, fallback: str) -> str:
         return cfg.get(key, fallback) or fallback
@@ -68,8 +73,8 @@ async def get_settings_endpoint():
         s3_secret_access_key_set=bool(
             cfg.get("S3_SECRET_ACCESS_KEY") or env.S3_SECRET_ACCESS_KEY
         ),
-        mcp_api_key=_get("MCP_API_KEY", env.MCP_API_KEY),
-        share_edit_token=settings_service.get_share_token(),
+        mcp_api_key=mcp_key if show_full else f"{mcp_key[:8]}••••••••••••••••",
+        share_edit_token=share_token if show_full else "••••••••••••••••",
         data_dir=env.DATA_DIR,
         base_url=_get("BASE_URL", env.BASE_URL),
         use_public_url=bool(cfg.get("USE_PUBLIC_URL", env.USE_PUBLIC_URL)),
@@ -77,7 +82,7 @@ async def get_settings_endpoint():
 
 
 @router.put("/settings", response_model=UpdateSettingsResponse)
-async def update_settings(body: UpdateSettingsRequest):
+async def update_settings(body: UpdateSettingsRequest, _=Depends(permission_service.require_write_permission)):
     """Save configuration to data/aidotmd.config.json."""
     updates: dict = {}
 
@@ -108,14 +113,14 @@ async def update_settings(body: UpdateSettingsRequest):
 
 
 @router.post("/settings/regenerate-key")
-async def regenerate_mcp_key():
+async def regenerate_mcp_key(_=Depends(permission_service.require_write_permission)):
     """Generate a new MCP API key and persist it."""
     key = settings_service.regenerate_mcp_key()
     return {"mcp_api_key": key}
 
 
 @router.post("/settings/test-storage", response_model=TestStorageResponse)
-async def test_storage_connection(body: UpdateSettingsRequest):
+async def test_storage_connection(body: UpdateSettingsRequest, _=Depends(permission_service.require_write_permission)):
     """
     Quick validation of S3/R2 credentials by attempting a
     small test write + delete before the user saves.

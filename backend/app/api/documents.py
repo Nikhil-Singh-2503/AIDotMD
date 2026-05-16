@@ -3,13 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from app.db import get_db
 from app.schemas.document import DocumentCreate, DocumentUpdate, DocumentOut, DocumentReorderRequest, DocumentVersionOut
-from app.services import document_service
+from app.services import document_service, permission_service
 
 router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 
 
 @router.post("", response_model=DocumentOut, status_code=201)
-async def create_document(data: DocumentCreate, db: AsyncSession = Depends(get_db)):
+async def create_document(data: DocumentCreate, db: AsyncSession = Depends(get_db), _=Depends(permission_service.require_write_permission)):
     return await document_service.create(db, data)
 
 
@@ -22,7 +22,7 @@ async def list_documents(section_id: Optional[str] = Query(None), db: AsyncSessi
 
 # NOTE: /reorder and /by-slug MUST come before /{doc_id} to avoid route collision
 @router.post("/reorder", status_code=204)
-async def reorder_documents(data: DocumentReorderRequest, db: AsyncSession = Depends(get_db)):
+async def reorder_documents(data: DocumentReorderRequest, db: AsyncSession = Depends(get_db), _=Depends(permission_service.require_write_permission)):
     await document_service.reorder(db, data.section_id, data.ids)
 
 
@@ -43,7 +43,7 @@ async def get_document(doc_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{doc_id}", response_model=DocumentOut)
-async def update_document(doc_id: str, data: DocumentUpdate, db: AsyncSession = Depends(get_db)):
+async def update_document(doc_id: str, data: DocumentUpdate, db: AsyncSession = Depends(get_db), _=Depends(permission_service.require_write_permission)):
     doc = await document_service.update(db, doc_id, data)
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -51,7 +51,7 @@ async def update_document(doc_id: str, data: DocumentUpdate, db: AsyncSession = 
 
 
 @router.delete("/{doc_id}", status_code=204)
-async def delete_document(doc_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_document(doc_id: str, db: AsyncSession = Depends(get_db), _=Depends(permission_service.require_write_permission)):
     deleted = await document_service.delete(db, doc_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -63,7 +63,7 @@ async def list_document_versions(doc_id: str, db: AsyncSession = Depends(get_db)
 
 
 @router.post("/{doc_id}/versions/{version_id}/restore", response_model=DocumentOut)
-async def restore_document_version(doc_id: str, version_id: str, db: AsyncSession = Depends(get_db)):
+async def restore_document_version(doc_id: str, version_id: str, db: AsyncSession = Depends(get_db), _=Depends(permission_service.require_write_permission)):
     doc = await document_service.restore_version(db, doc_id, version_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Version or document not found")

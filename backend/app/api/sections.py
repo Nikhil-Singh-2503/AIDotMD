@@ -3,13 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 from app.db import get_db
 from app.schemas.section import SectionCreate, SectionUpdate, SectionOut, SectionVersionOut, ReorderRequest
-from app.services import section_service
+from app.services import section_service, permission_service
 
 router = APIRouter(prefix="/api/v1/sections", tags=["sections"])
 
 
 @router.post("", response_model=SectionOut, status_code=201)
-async def create_section(data: SectionCreate, db: AsyncSession = Depends(get_db)):
+async def create_section(data: SectionCreate, db: AsyncSession = Depends(get_db), _=Depends(permission_service.require_write_permission)):
     return await section_service.create(db, data)
 
 
@@ -20,7 +20,7 @@ async def list_sections(db: AsyncSession = Depends(get_db)):
 
 # NOTE: /reorder MUST come before /{section_id} to avoid route collision
 @router.post("/reorder", status_code=204)
-async def reorder_sections(data: ReorderRequest, db: AsyncSession = Depends(get_db)):
+async def reorder_sections(data: ReorderRequest, db: AsyncSession = Depends(get_db), _=Depends(permission_service.require_write_permission)):
     await section_service.reorder(db, data.ids)
 
 
@@ -33,7 +33,7 @@ async def get_section(section_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{section_id}", response_model=SectionOut)
-async def update_section(section_id: str, data: SectionUpdate, db: AsyncSession = Depends(get_db)):
+async def update_section(section_id: str, data: SectionUpdate, db: AsyncSession = Depends(get_db), _=Depends(permission_service.require_write_permission)):
     section = await section_service.update(db, section_id, data)
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
@@ -41,7 +41,7 @@ async def update_section(section_id: str, data: SectionUpdate, db: AsyncSession 
 
 
 @router.delete("/{section_id}", status_code=204)
-async def delete_section(section_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_section(section_id: str, db: AsyncSession = Depends(get_db), _=Depends(permission_service.require_write_permission)):
     deleted = await section_service.delete(db, section_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Section not found")

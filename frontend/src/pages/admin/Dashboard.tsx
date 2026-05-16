@@ -4,6 +4,7 @@ import { api, type Document, type Section } from '@/api/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import {
   FileText,
@@ -81,6 +82,8 @@ function QuickAction({ title, description, icon, to, variant = 'default' }: Quic
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const { data: versionData } = useQuery({
     queryKey: ['version'],
     queryFn: async () => {
@@ -139,17 +142,21 @@ export default function Dashboard() {
           icon={<Folder className="h-5 w-5" />}
           variant="success"
         />
-        <StatCard
-          title="In Trash"
-          value={totalTrash}
-          icon={<Trash2 className="h-5 w-5" />}
-          variant={totalTrash > 0 ? 'warning' : 'default'}
-        />
-        <StatCard
-          title="Version"
-          value={version}
-          icon={<Settings className="h-5 w-5" />}
-        />
+        {isAdmin && (
+          <StatCard
+            title="In Trash"
+            value={totalTrash}
+            icon={<Trash2 className="h-5 w-5" />}
+            variant={totalTrash > 0 ? 'warning' : 'default'}
+          />
+        )}
+        {isAdmin && (
+          <StatCard
+            title="Version"
+            value={version}
+            icon={<Settings className="h-5 w-5" />}
+          />
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -169,18 +176,22 @@ export default function Dashboard() {
               icon={<Folder className="h-5 w-5" />}
               to="/admin/sections"
             />
-            <QuickAction
-              title="View Trash"
-              description={`${totalTrash} items pending deletion`}
-              icon={<Trash2 className="h-5 w-5" />}
-              to="/admin/trash"
-            />
-            <QuickAction
-              title="Check Updates"
-              description="View system version and updates"
-              icon={<RefreshCw className="h-5 w-5" />}
-              to="/admin/updates"
-            />
+            {isAdmin && (
+              <QuickAction
+                title="View Trash"
+                description={`${totalTrash} items pending deletion`}
+                icon={<Trash2 className="h-5 w-5" />}
+                to="/admin/trash"
+              />
+            )}
+            {isAdmin && (
+              <QuickAction
+                title="Check Updates"
+                description="View system version and updates"
+                icon={<RefreshCw className="h-5 w-5" />}
+                to="/admin/updates"
+              />
+            )}
           </div>
 
           <div className="mt-6">
@@ -234,10 +245,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">System Status</h2>
-          <UpdateWidget />
-        </div>
+        {isAdmin && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">System Status</h2>
+            <UpdateWidget />
+          </div>
+        )}
       </div>
     </div>
   )

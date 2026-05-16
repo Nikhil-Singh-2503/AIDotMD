@@ -4,12 +4,18 @@ import AdminDocumentEdit from './pages/admin/DocumentEdit'
 import AdminSections from './pages/admin/Sections'
 import AdminTrash from './pages/admin/Trash'
 import AdminDashboard from './pages/admin/Dashboard'
+import AdminUsers from './pages/admin/Users'
 import AdminUpdates from './pages/admin/Updates'
 import DocsLayout from './pages/reader/DocsLayout'
 import DocPage from './pages/reader/DocPage'
 import DocsIndex from './pages/reader/DocsIndex'
 import HomePage from './pages/HomePage'
+import LoginPage from './pages/LoginPage'
+import MyDashboard from './pages/MyDashboard'
 import Settings from './pages/Settings'
+import { AuthGuard } from './components/AuthGuard'
+import { AdminRoute } from './components/AdminRoute'
+import { AdminOnlyGuard } from './components/AdminOnlyGuard'
 import { AdminGuard } from './components/AdminGuard'
 import { AdminLayout } from './components/admin/AdminLayout'
 
@@ -23,18 +29,30 @@ function AdminPages() {
 
 export const router = createBrowserRouter([
   { path: '/', element: <HomePage /> },
+  { path: '/login', element: <LoginPage /> },
   {
-    element: <AdminGuard><AdminPages /></AdminGuard>,
+    element: <AuthGuard><AdminGuard><AdminRoute><AdminPages /></AdminRoute></AdminGuard></AuthGuard>,
     children: [
       { path: '/admin', element: <AdminDashboard /> },
       { path: '/admin/documents', element: <AdminDocuments /> },
       { path: '/admin/sections', element: <AdminSections /> },
-      { path: '/admin/trash', element: <AdminTrash /> },
-      { path: '/admin/updates', element: <AdminUpdates /> },
       { path: '/admin/documents/new', element: <AdminDocumentEdit /> },
       { path: '/admin/documents/:id', element: <AdminDocumentEdit /> },
-      { path: '/settings', element: <Settings /> },
+      {
+        element: <AdminOnlyGuard><Outlet /></AdminOnlyGuard>,
+        children: [
+          { path: '/admin/trash', element: <AdminTrash /> },
+          { path: '/admin/users', element: <AdminUsers /> },
+          { path: '/admin/updates', element: <AdminUpdates /> },
+          { path: '/settings', element: <Settings /> },
+        ],
+      },
     ],
+  },
+  {
+    // Non-admin dashboard — editors and viewers land here
+    element: <AuthGuard><MyDashboard /></AuthGuard>,
+    path: '/my-dashboard',
   },
   {
     path: '/docs',

@@ -67,6 +67,10 @@ Everything you need to capture, organize, and share AI-generated knowledge — w
 | 🖨️ | **PDF export** | Print any doc to PDF directly from the browser — clean, styled output |
 | 🚇 | **Cloudflare Tunnel** | Built-in tunnel service — share your local docs with a public URL instantly |
 | 🔄 | **Auto-updates** | Check for new versions from GitHub with deployment-aware instructions |
+| 👥 | **User accounts & login** | Email + password authentication with session management |
+| 🛡️ | **Role-based access control** | Three roles: Admin, Editor, and Viewer with granular permissions |
+| 👤 | **User management** | Admin dashboard to create, edit, and manage users |
+| 🔔 | **Toast notifications** | Real-time feedback for saves, deletes, errors, and actions |
 
 ---
 
@@ -85,9 +89,13 @@ Open **http://localhost:3000** — that's it.
 | URL | What you get |
 |-----|-------------|
 | `http://localhost:3000` | Homepage |
+| `http://localhost:3000/login` | Sign in to your account |
 | `http://localhost:3000/docs` | Public documentation reader |
-| `http://localhost:3000/admin` | Document & section management |
-| `http://localhost:3000/settings` | Storage, database, MCP & sharing config |
+| `http://localhost:3000/admin` | Admin dashboard (admin & editor roles) |
+| `http://localhost:3000/my-dashboard` | Minimal dashboard (viewer role) |
+| `http://localhost:3000/settings` | Storage, database, MCP & sharing config (admin only) |
+
+> **First run:** An admin account is auto-created (`admin@aidotmd.local`) with a random password printed to the server logs. Check the logs, then visit `/login` to sign in. Set `ADMIN_PASSWORD` in your `.env` file to use a known password instead of a random one.
 
 > **Data persists** in `./data/` on your host machine — no data is lost on container restarts.
 
@@ -216,11 +224,70 @@ Restart: `docker-compose up --build` — your docs are permanently available at 
 
 ---
 
-## 🤖 MCP Integration
+## 🔐 Authentication & Role-Based Access Control
+
+AIDotMd includes a built-in authentication system with three user roles:
+
+### Roles
+
+| Role | Permissions |
+|------|-------------|
+| **Admin** | Full access — manage documents, sections, users, settings, trash, updates |
+| **Editor** | Create, edit, and delete documents and sections. Cannot manage users, settings, trash, or updates |
+| **Viewer** | Read-only access to published docs. Cannot create, edit, or delete any content |
+
+### First-Run Setup
+
+On first startup, an admin account is auto-created with credentials printed to the server logs:
+
+```
+============================================================
+AIDotMD Admin Account (auto-created)
+  Email:    admin@aidotmd.local
+  Password: <random token>
+============================================================
+```
+
+Visit `http://localhost:3000/login` and sign in. For subsequent startups, you can set a fixed admin password via the `ADMIN_PASSWORD` environment variable.
+
+### User Management
+
+Admins can manage users at **`/admin/users`**:
+- **Create users** — set email, name, password, and role
+- **Edit roles** — change a user's role inline
+- **Reset passwords** — generate a temporary password
+- **Enable / disable** accounts
+- **Delete users**
+
+### Password Recovery
+
+If you lose the admin password, you have two options:
+
+1. **Reset via localhost** — On the login page at `localhost:3000/login`, click **"Forgot password? Reset on localhost"** to generate a new temporary password.
+
+2. **Set `ADMIN_PASSWORD` env var** — Add `ADMIN_PASSWORD=yourpassword` to your `.env` file. On every startup, the admin password is forcibly set to this value.
+
+### Route Access by Role
+
+| Route | Public | Viewer | Editor | Admin |
+|-------|--------|--------|--------|-------|
+| `/` Homepage | ✅ | ✅ | ✅ | ✅ |
+| `/docs/*` Reader | ✅ | ✅ | ✅ | ✅ |
+| `/login` | ✅ | ➡️ redirect | ➡️ redirect | ➡️ redirect |
+| `/my-dashboard` | ❌ | ✅ | ✅ | ❌ |
+| `/admin` Dashboard | ❌ | ❌ | ✅ | ✅ |
+| `/admin/documents/*` | ❌ | ❌ | ✅ | ✅ |
+| `/admin/sections/*` | ❌ | ❌ | ✅ | ✅ |
+| `/admin/trash/*` | ❌ | ❌ | ❌ | ✅ |
+| `/admin/users/*` | ❌ | ❌ | ❌ | ✅ |
+| `/admin/updates/*` | ❌ | ❌ | ❌ | ✅ |
+| `/settings` | ❌ | ❌ | ❌ | ✅ |
+
+---
 
 AIDotMd ships with a built-in **MCP (Model Context Protocol) server** that any compatible AI agent can connect to.
 
-> Your MCP API key is auto-generated on first launch. Find it at **Settings → MCP** in the UI.
+> Your MCP API key is auto-generated on first launch. Find it at **Settings → MCP** in the UI (visible to admin and editor roles). The MCP server uses its own API key authentication, separate from the web login system.
 
 ### Connect Claude Desktop
 
@@ -304,6 +371,7 @@ All config can be set via environment variables in `docker-compose.yml` or throu
 | `S3_SECRET_ACCESS_KEY` | _(empty)_ | S3 secret access key |
 | `S3_ENDPOINT_URL` | _(empty)_ | Custom endpoint for R2/MinIO |
 | `MCP_API_KEY` | _(auto-generated)_ | API key for MCP authentication |
+| `ADMIN_PASSWORD` | _(random on first run)_ | Set a fixed admin password. Overrides auto-generated password on every startup |
 | `AIDOTMD_DEPLOYMENT` | _(auto-detected)_ | Override deployment type: `docker` or `source` |
 
 > **Version & Updates** — The `VERSION` field is set at build time in the container and is not configurable via environment variables. The update system automatically detects whether you're running via Docker or source and shows appropriate update commands.
@@ -383,18 +451,26 @@ aidotmd/
 │
 ├── backend/
 │   ├── app/
-│   │   ├── main.py             # FastAPI app + lifespan + MCP auth middleware
+│   │   ├── main.py             # FastAPI app + lifespan + auth/MCP middleware
 │   │   ├── config.py           # Pydantic settings (env vars)
 │   │   ├── api/                # REST routers
+│   │   │   ├── auth.py         # Login, logout, me, change-password, reset-admin
+│   │   │   ├── admin_users.py  # Admin user management CRUD
 │   │   │   ├── documents.py
 │   │   │   ├── sections.py
 │   │   │   ├── stream.py       # SSE endpoints (/live, /live/status)
 │   │   │   ├── nav.py          # Sidebar tree builder
+│   │   │   ├── trash.py        # Restore / permanent delete
 │   │   │   └── settings.py     # Settings CRUD + storage test
 │   │   ├── mcp/
 │   │   │   └── server.py       # FastMCP server (9 tools)
+│   │   ├── schemas/
+│   │   │   └── auth.py         # Pydantic models for auth requests/responses
 │   │   └── services/
-│   │       ├── stream_manager.py   # In-memory pub/sub for live streaming
+│   │       ├── auth_service.py        # Password hashing, session management
+│   │       ├── user_service.py        # User CRUD, first-run admin creation
+│   │       ├── permission_service.py  # Role-based access control checks
+│   │       ├── stream_manager.py      # In-memory pub/sub for live streaming
 │   │       ├── document_service.py
 │   │       └── settings_service.py
 │   ├── alembic/                # Database migrations
@@ -406,12 +482,28 @@ aidotmd/
     └── src/
         ├── pages/
         │   ├── HomePage.tsx         # Landing page
+        │   ├── LoginPage.tsx        # Email + password sign-in
+        │   ├── MyDashboard.tsx      # Minimal dashboard for editors/viewers
         │   ├── reader/DocPage.tsx   # Live SSE rendering + Copy Link + Print
-        │   ├── admin/               # Document & section management
+        │   ├── admin/
+        │   │   ├── Dashboard.tsx    # Admin overview with stats + quick actions
+        │   │   ├── Users.tsx        # User creation, role management, password reset
+        │   │   ├── Documents.tsx    # Document list with drag-and-drop reorder
+        │   │   ├── DocumentEdit.tsx # Markdown editor + metadata
+        │   │   └── Sections.tsx     # Hierarchical section management
         │   └── Settings.tsx         # DB / Storage / MCP / Sharing config
         ├── components/
+        │   ├── AuthGuard.tsx        # Redirects unauthenticated users to /login
+        │   ├── AdminRoute.tsx       # Restricts routes to admin/editor roles
+        │   ├── AdminOnlyGuard.tsx   # Restricts routes to admin role only
+        │   ├── AdminGuard.tsx       # Checks auth + share token for admin access
         │   ├── MarkdownRenderer.tsx
-        │   └── DocsSidebar.tsx
+        │   ├── DocsSidebar.tsx
+        │   ├── ui/Toaster.tsx       # Toast notification container
+        │   └── ui/Toast.tsx         # Toast component with variants
+        ├── context/
+        │   ├── AuthContext.tsx      # Auth state management (login, logout, user)
+        │   └── ToastContext.tsx     # Toast queue management
         └── api/
             └── client.ts            # Type-safe API client
 ```

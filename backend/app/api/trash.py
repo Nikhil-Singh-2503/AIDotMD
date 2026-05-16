@@ -7,6 +7,7 @@ from app.models.models import Section, Document
 from app.schemas.section import SectionOut
 from app.schemas.document import DocumentOut
 from app.services.document_service import get_storage
+from app.services import permission_service
 
 router = APIRouter(prefix="/api/v1/trash", tags=["trash"])
 
@@ -27,7 +28,7 @@ async def list_trash(db: AsyncSession = Depends(get_db)):
     }
 
 @router.post("/restore")
-async def restore_item(data: dict, db: AsyncSession = Depends(get_db)):
+async def restore_item(data: dict, db: AsyncSession = Depends(get_db), _=Depends(permission_service.require_admin_permission)):
     item_id = data.get("id")
     item_type = data.get("type")
     
@@ -68,7 +69,7 @@ async def restore_item(data: dict, db: AsyncSession = Depends(get_db)):
     raise HTTPException(status_code=400, detail="Invalid type")
 
 @router.delete("/permanent")
-async def hard_delete_item(id: str = Query(...), type: str = Query(...), db: AsyncSession = Depends(get_db)):
+async def hard_delete_item(id: str = Query(...), type: str = Query(...), db: AsyncSession = Depends(get_db), _=Depends(permission_service.require_admin_permission)):
     if type == "section":
         result = await db.execute(select(Section).where(Section.id == id, Section.deleted_at.is_not(None)))
         section = result.scalar_one_or_none()

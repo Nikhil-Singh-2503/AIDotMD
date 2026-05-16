@@ -1,7 +1,17 @@
 const BASE = '/api/v1'
 
-// ── Share token store ─────────────────────────────────────────────────────────
-// Populated from settings on load (admin) or extracted from ?share_token= URL param (recipient).
+// ── Auth token store ──────────────────────────────────────────────────────────
+// Session token from login; share token from ?share_token= URL param.
+
+let _authToken: string | null = null
+
+export function setAuthToken(token: string | null) {
+  _authToken = token
+}
+
+export function getAuthToken(): string | null {
+  return _authToken
+}
 
 let _shareToken: string | null = null
 
@@ -17,6 +27,7 @@ export function getShareToken(): string | null {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const extraHeaders: Record<string, string> = {}
+  if (_authToken) extraHeaders['Authorization'] = `Bearer ${_authToken}`
   if (_shareToken) extraHeaders['X-Share-Token'] = _shareToken
 
   const res = await fetch(`${BASE}${path}`, {

@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from app.db import get_db
 from app.schemas.document import DocumentCreate, DocumentOut
-from app.services import document_service
+from app.services import document_service, permission_service
 from app.services.document_service import get_storage
 
 router = APIRouter(prefix="/api/v1/upload", tags=["upload"])
@@ -34,6 +34,7 @@ async def upload_markdown(
     section_id: str,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
+    _=Depends(permission_service.require_write_permission),
 ):
     if not file.filename.endswith(".md"):
         raise HTTPException(status_code=400, detail="Only .md files are accepted")
@@ -46,7 +47,7 @@ async def upload_markdown(
 
 
 @router.post("/image", response_model=ImageUploadResponse)
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(file: UploadFile = File(...), _=Depends(permission_service.require_write_permission)):
     allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
     suffix = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
     if suffix not in allowed:
