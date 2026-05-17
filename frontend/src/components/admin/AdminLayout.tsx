@@ -21,6 +21,7 @@ import {
   X,
   Users,
   LogOut,
+  Shield,
 } from 'lucide-react'
 
 interface AdminLayoutProps {
@@ -32,6 +33,7 @@ const navItems = [
   { path: '/admin/documents', label: 'Documents', icon: FileText, adminOnly: false },
   { path: '/admin/sections', label: 'Sections', icon: Folder, adminOnly: false },
   { path: '/admin/users', label: 'Users', icon: Users, adminOnly: true },
+  { path: '/admin/permissions', label: 'Permissions', icon: Shield, adminOnly: true },
   { path: '/admin/trash', label: 'Trash', icon: Trash2, adminOnly: true },
   { path: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
   { path: '/admin/updates', label: 'Updates', icon: RefreshCw, adminOnly: true },

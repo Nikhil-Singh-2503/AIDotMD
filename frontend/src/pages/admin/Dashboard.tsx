@@ -15,6 +15,8 @@ import {
   Plus,
   Clock,
   ArrowRight,
+  Shield,
+  Users,
 } from 'lucide-react'
 import { UpdateWidget } from '@/components/admin/UpdateWidget'
 
@@ -101,6 +103,23 @@ export default function Dashboard() {
   const { data: documents = [] } = useQuery({ queryKey: ['documents'], queryFn: () => api.documents.list() })
   const { data: trashData } = useQuery({ queryKey: ['trash'], queryFn: api.trash.list })
 
+  const { data: permissionCount } = useQuery({
+    queryKey: ['permission-count'],
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem('aidotmd_session_token')
+        const res = await fetch('/api/v1/permissions', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return []
+        return res.json()
+      } catch {
+        return []
+      }
+    },
+    enabled: isAdmin,
+  })
+
   const version = versionData?.version || 'N/A'
 
   const publishedDocs = documents.filter((d: Document) => d.is_published).length
@@ -157,6 +176,15 @@ export default function Dashboard() {
             icon={<Settings className="h-5 w-5" />}
           />
         )}
+        {isAdmin && (
+          <StatCard
+            title="Permissions"
+            value={Array.isArray(permissionCount) ? permissionCount.length : 0}
+            icon={<Shield className="h-5 w-5" />}
+            subtitle="custom overrides"
+            variant="default"
+          />
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -176,6 +204,22 @@ export default function Dashboard() {
               icon={<Folder className="h-5 w-5" />}
               to="/admin/sections"
             />
+            {isAdmin && (
+              <QuickAction
+                title="Manage Users"
+                description="Create, edit, and manage user accounts"
+                icon={<Users className="h-5 w-5" />}
+                to="/admin/users"
+              />
+            )}
+            {isAdmin && (
+              <QuickAction
+                title="Manage Permissions"
+                description="Set per-document and per-section access overrides"
+                icon={<Shield className="h-5 w-5" />}
+                to="/admin/permissions"
+              />
+            )}
             {isAdmin && (
               <QuickAction
                 title="View Trash"

@@ -67,3 +67,23 @@ async def get_sidebar_config(db: AsyncSession) -> Dict[str, Any]:
         return items
 
     return {"docs": build_sidebar_items(tree)}
+
+
+async def get_sidebar_config_from_tree(tree: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def build_sidebar_items(nodes: List[Dict[str, Any]]) -> list:
+        items = []
+        for node in nodes:
+            category: Dict[str, Any] = {
+                "type": "category",
+                "label": node["title"],
+                "items": [
+                    {"type": "doc", "id": f"{node['slug']}/{doc['slug']}", "label": doc["title"]}
+                    for doc in node["documents"]
+                ],
+            }
+            if node["children"]:
+                category["items"] += build_sidebar_items(node["children"])
+            items.append(category)
+        return items
+
+    return {"docs": build_sidebar_items(tree)}

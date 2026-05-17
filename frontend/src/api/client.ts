@@ -34,7 +34,16 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', ...extraHeaders, ...options?.headers },
     ...options,
   })
-  if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`)
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`
+    try {
+      const body = await res.json()
+      if (body.detail) message = body.detail
+      else if (body.error) message = body.error
+      else if (body.message) message = body.message
+    } catch {}
+    throw new Error(message)
+  }
   if (res.status === 204) return undefined as T
   return res.json()
 }
@@ -74,10 +83,19 @@ export interface AppSettings {
   s3_access_key_id: string
   s3_secret_access_key_set: boolean
   mcp_api_key: string
-  share_edit_token: string
   data_dir: string
   base_url: string
   use_public_url: boolean
+}
+
+export interface DocPermission {
+  id: string
+  user_id: string
+  document_id?: string | null
+  section_id?: string | null
+  permission: string
+  granted_by: string
+  created_at: string
 }
 
 export interface SearchResult {
@@ -125,11 +143,7 @@ export const api = {
     hardDelete: (id: string, type: 'section' | 'document') => request<{status: string}>(`/trash/permanent?id=${id}&type=${type}`, { method: 'DELETE' }),
   },
   settings: {
-    get: () => request<AppSettings>('/settings').then(data => {
-      // Admin browser: auto-inject edit token for all subsequent write requests
-      if (data.share_edit_token) setShareToken(data.share_edit_token)
-      return data
-    }),
+    get: () => request<AppSettings>('/settings'),
     update: (data: Partial<Omit<AppSettings, 'mcp_api_key' | 'data_dir' | 's3_secret_access_key_set'> & { s3_secret_access_key?: string }>) =>
       request<{ status: string; restart_required: boolean }>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
     regenerateKey: () => request<{ mcp_api_key: string }>('/settings/regenerate-key', { method: 'POST' }),
@@ -148,5 +162,18 @@ export const api = {
       const form = new FormData(); form.append('file', file)
       return request<{ url: string; filename: string }>('/upload/image', { method: 'POST', headers: {}, body: form })
     },
+  },
+  permissions: {
+    list: (params: { document_id?: string; section_id?: string }) => {
+      const query = new URLSearchParams()
+      if (params.document_id) query.set('document_id', params.document_id)
+      if (params.section_id) query.set('section_id', params.section_id)
+      return request<DocPermission[]>(`/permissions?${query}`)
+    },
+    create: (data: { user_id: string; document_id?: string; section_id?: string; permission: string }) =>
+      request<DocPermission>('/permissions', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, permission: string) =>
+      request<DocPermission>(`/permissions/${id}`, { method: 'PUT', body: JSON.stringify({ permission }) }),
+    delete: (id: string) => request<void>(`/permissions/${id}`, { method: 'DELETE' }),
   },
 }

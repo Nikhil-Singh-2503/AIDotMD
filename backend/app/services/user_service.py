@@ -85,19 +85,19 @@ async def reset_password(db: AsyncSession, user_id: str, new_password: str) -> O
 async def ensure_admin_user(db: AsyncSession) -> Optional[User]:
     import os
     result = await db.execute(select(User).where(User.role == "admin"))
-    existing = result.scalar_one_or_none()
+    admins = list(result.scalars().all())
 
     env_password = os.environ.get("ADMIN_PASSWORD", "")
 
-    if existing:
-        # If ADMIN_PASSWORD env var is set, update the password on every startup
+    if admins:
+        first_admin = admins[0]
         if env_password:
-            existing.password_hash = hash_password(env_password)
+            first_admin.password_hash = hash_password(env_password)
             await db.commit()
             print("=" * 60)
             print("AIDotMD Admin password updated from ADMIN_PASSWORD env var")
             print("=" * 60)
-        return existing
+        return first_admin
 
     temp_password = env_password if env_password else secrets.token_urlsafe(12)
     admin = User(
@@ -122,9 +122,9 @@ async def ensure_admin_user(db: AsyncSession) -> Optional[User]:
 
 async def ensure_mcp_user(db: AsyncSession) -> Optional[User]:
     result = await db.execute(select(User).where(User.is_service_account == True))
-    existing = result.scalar_one_or_none()
-    if existing:
-        return existing
+    service_users = list(result.scalars().all())
+    if service_users:
+        return service_users[0]
 
     mcp_user = User(
         email="mcp@aidotmd.internal",

@@ -5,6 +5,7 @@ import AdminSections from './pages/admin/Sections'
 import AdminTrash from './pages/admin/Trash'
 import AdminDashboard from './pages/admin/Dashboard'
 import AdminUsers from './pages/admin/Users'
+import AdminPermissions from './pages/admin/Permissions'
 import AdminUpdates from './pages/admin/Updates'
 import DocsLayout from './pages/reader/DocsLayout'
 import DocPage from './pages/reader/DocPage'
@@ -17,6 +18,7 @@ import { AuthGuard } from './components/AuthGuard'
 import { AdminRoute } from './components/AdminRoute'
 import { AdminOnlyGuard } from './components/AdminOnlyGuard'
 import { AdminGuard } from './components/AdminGuard'
+import { DocsGuard } from './components/DocsGuard'
 import { AdminLayout } from './components/admin/AdminLayout'
 
 function AdminPages() {
@@ -43,6 +45,7 @@ export const router = createBrowserRouter([
         children: [
           { path: '/admin/trash', element: <AdminTrash /> },
           { path: '/admin/users', element: <AdminUsers /> },
+          { path: '/admin/permissions', element: <AdminPermissions /> },
           { path: '/admin/updates', element: <AdminUpdates /> },
           { path: '/settings', element: <Settings /> },
         ],
@@ -56,7 +59,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/docs',
-    element: <DocsLayout />,
+    element: <DocsGuard><DocsLayout /></DocsGuard>,
     children: [
       { index: true, element: <DocsIndex /> },
       { path: ':section/:slug', element: <DocPage /> },

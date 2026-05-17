@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 from app.db import init_db, SessionLocal
 from app.config import get_settings
 from app.api import (
@@ -19,6 +21,8 @@ from app.api import (
     updates as updates_router,
     auth as auth_router,
     admin_users,
+    permissions as permissions_router,
+    share_links as share_links_router,
 )
 from app.services import settings_service, auth_service, user_service
 from app.mcp.server import mcp
@@ -37,7 +41,6 @@ async def combined_lifespan(app: FastAPI):
     Path(_settings.STATIC_DIR).mkdir(parents=True, exist_ok=True)
     Path(_settings.DATA_DIR).mkdir(parents=True, exist_ok=True)
     settings_service.ensure_mcp_key()
-    settings_service.ensure_share_token()
 
     # Ensure admin user (first-run) and MCP service account
     async with SessionLocal() as db:
@@ -56,15 +59,13 @@ _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # which has its own auth; /mcp/* is handled separately below)
 _WRITE_EXEMPT_PREFIXES = ("/api/v1/docs/",)  # SSE stream commits
 
-# Read paths that are completely public (for the public-facing documentation viewer)
+# Read paths that are completely public
 _PUBLIC_GET_PREFIXES = (
-    "/api/v1/nav/tree",
-    "/api/v1/search",
-    "/api/v1/documents/by-slug",
     "/api/v1/meta",
 )
 
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+_counted_share_tokens = set()
 
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
@@ -92,6 +93,34 @@ async def auth_middleware(request: Request, call_next):
     if api_path.startswith("/api/v1/admin/users"):
         return await call_next(request)
 
+    # Check share link token FIRST
+    share_token = request.headers.get("x-share-token", "") or request.query_params.get("share", "")
+    if share_token:
+        from app.models.models import ShareLink
+        async with SessionLocal() as db:
+            result = await db.execute(
+                select(ShareLink).where(
+                    ShareLink.token == share_token,
+                )
+            )
+            link = result.scalar_one_or_none()
+            if link:
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                expires = link.expires_at.replace(tzinfo=None) if link.expires_at and link.expires_at.tzinfo else link.expires_at
+                if expires and expires < now:
+                    return JSONResponse({"detail": "Share link has expired"}, status_code=401)
+                if link.max_uses and link.use_count >= link.max_uses:
+                    return JSONResponse({"detail": "Share link has reached maximum uses"}, status_code=401)
+                # Only count once per token — prevents incrementing on every API call
+                if link.token not in _counted_share_tokens:
+                    _counted_share_tokens.add(link.token)
+                    if len(_counted_share_tokens) > 50000:
+                        _counted_share_tokens.clear()
+                    link.use_count += 1
+                    link.last_accessed_at = datetime.now(timezone.utc)
+                    await db.commit()
+                request.state.share_link = link
+
     # Check for valid session token
     auth_header = request.headers.get("authorization", "")
     token = ""
@@ -109,14 +138,13 @@ async def auth_middleware(request: Request, call_next):
                     request.state.user = user
                     return await call_next(request)
 
-    # Fall back to share token (backward compatibility for remote editors)
+    # Fall back to localhost access
     host = request.headers.get("host", "").split(":")[0]
     if host in _LOCAL_HOSTS:
         return await call_next(request)
 
-    stored_share = settings_service.get_share_token()
-    share_token = request.headers.get("x-share-token", "")
-    if share_token and share_token == stored_share:
+    # Allow if share link was validated above
+    if share_token and hasattr(request.state, 'share_link') and request.state.share_link:
         return await call_next(request)
 
     return JSONResponse({"detail": "Unauthorized"}, status_code=401)
@@ -182,6 +210,8 @@ app.include_router(meta_router.router, prefix="/api/v1")
 app.include_router(updates_router.router, prefix="/api/v1")
 app.include_router(auth_router.router)
 app.include_router(admin_users.router)
+app.include_router(permissions_router.router)
+app.include_router(share_links_router.router)
 
 
 @app.get("/health")

@@ -19,7 +19,6 @@ class SettingsResponse(BaseModel):
     s3_access_key_id: str
     s3_secret_access_key_set: bool   # never expose the actual secret
     mcp_api_key: str
-    share_edit_token: str
     data_dir: str
     base_url: str
     use_public_url: bool
@@ -58,7 +57,6 @@ async def get_settings_endpoint(request: Request):
     user = getattr(request.state, "user", None)
     show_full = user is None or user.role in ("admin", "editor")
     mcp_key = settings_service.get_mcp_key()
-    share_token = settings_service.get_share_token()
 
     def _get(key: str, fallback: str) -> str:
         return cfg.get(key, fallback) or fallback
@@ -74,7 +72,6 @@ async def get_settings_endpoint(request: Request):
             cfg.get("S3_SECRET_ACCESS_KEY") or env.S3_SECRET_ACCESS_KEY
         ),
         mcp_api_key=mcp_key if show_full else f"{mcp_key[:8]}••••••••••••••••",
-        share_edit_token=share_token if show_full else "••••••••••••••••",
         data_dir=env.DATA_DIR,
         base_url=_get("BASE_URL", env.BASE_URL),
         use_public_url=bool(cfg.get("USE_PUBLIC_URL", env.USE_PUBLIC_URL)),

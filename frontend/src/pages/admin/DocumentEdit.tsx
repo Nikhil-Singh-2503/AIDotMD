@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { MarkdownEditor } from '@/components/MarkdownEditor'
 import { useToast } from '@/hooks/useToast'
-import { ArrowLeft, Upload } from 'lucide-react'
+import { ArrowLeft, Upload, Shield } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { VersionHistoryModal } from '@/components/VersionHistoryModal'
+import { PermissionManager } from '@/components/admin/PermissionManager'
 
 export default function AdminDocumentEdit() {
   const { id } = useParams()
@@ -20,6 +21,7 @@ export default function AdminDocumentEdit() {
   const qc = useQueryClient()
   const { toast } = useToast()
   const isNew = !id
+  const [permOpen, setPermOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const mdFileRef = useRef<HTMLInputElement>(null)
 
@@ -75,13 +77,18 @@ export default function AdminDocumentEdit() {
         <h1 className="text-2xl font-bold">{isNew ? 'New Document' : 'Edit Document'}</h1>
         <div className="ml-auto flex items-center gap-1">
           {!isNew && id && (
-            <VersionHistoryModal
-              id={id}
-              mode="document"
-              onRestored={() => {
-                qc.invalidateQueries({ queryKey: ['document', id] })
-              }}
-            />
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setPermOpen(true)} className="text-muted-foreground/50 hover:text-foreground">
+                <Shield className="w-4 h-4" />
+              </Button>
+              <VersionHistoryModal
+                id={id}
+                mode="document"
+                onRestored={() => {
+                  qc.invalidateQueries({ queryKey: ['document', id] })
+                }}
+              />
+            </>
           )}
           <ThemeToggle />
         </div>
@@ -204,6 +211,15 @@ export default function AdminDocumentEdit() {
           </div>
         </div>
       </div>
+
+      {id && (
+        <PermissionManager
+          documentId={id}
+          mode="document"
+          open={permOpen}
+          onClose={() => setPermOpen(false)}
+        />
+      )}
     </div>
   )
 }

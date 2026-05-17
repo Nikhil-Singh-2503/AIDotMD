@@ -62,6 +62,34 @@ class SectionVersion(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class ShareLink(Base):
+    __tablename__ = "share_links"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    token: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    document_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("documents.id", ondelete="CASCADE"), nullable=True)
+    section_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("sections.id", ondelete="CASCADE"), nullable=True)
+    permission: Mapped[str] = mapped_column(String(50), nullable=False)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    max_uses: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    use_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_by: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    last_accessed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DocPermission(Base):
+    __tablename__ = "doc_permissions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    document_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("documents.id", ondelete="CASCADE"), nullable=True)
+    section_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("sections.id", ondelete="CASCADE"), nullable=True)
+    permission: Mapped[str] = mapped_column(String(50), nullable=False)
+    granted_by: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class DocumentVersion(Base):
     __tablename__ = "document_versions"
 

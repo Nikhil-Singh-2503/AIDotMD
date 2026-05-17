@@ -7,8 +7,9 @@
 </h1>
 
 <p align="center">
-  <strong>Your AI agents do the research. AIDotMd captures, organizes, and shares it — on your own machine.</strong><br/>
-  Self-hosted knowledge base where Claude, Cursor, and Windsurf write your docs automatically via MCP.
+  <strong>The AI-native docs platform. One command to launch.</strong><br/>
+  Self-hosted knowledge base with login, role-based access control, tracked share links, and MCP integration.
+  <br/>Claude, Cursor, and Windsurf write your docs automatically — or author them yourself.
 </p>
 
 <p align="center">
@@ -18,6 +19,8 @@
   <img src="https://img.shields.io/badge/MCP-compatible-6E40C9?logo=anthropic&logoColor=white" alt="MCP"/>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT License"/>
   <img src="https://img.shields.io/badge/self--hosted-✓-orange" alt="Self-hosted"/>
+  <img src="https://img.shields.io/badge/RBAC-Admin%2FEditor%2FViewer-blue" alt="RBAC"/>
+  <img src="https://img.shields.io/badge/auth-email%2Bpassword-brightgreen" alt="Auth"/>
 </p>
 
 <p align="center">
@@ -70,6 +73,8 @@ Everything you need to capture, organize, and share AI-generated knowledge — w
 | 👥 | **User accounts & login** | Email + password authentication with session management |
 | 🛡️ | **Role-based access control** | Three roles: Admin, Editor, and Viewer with granular permissions |
 | 👤 | **User management** | Admin dashboard to create, edit, and manage users |
+| 🔗 | **Per-doc share links** | Create tracked share links with expiry, max uses, and view/edit permissions |
+| 📋 | **Permission overrides** | Set per-document and per-section access overrides (read/write) |
 | 🔔 | **Toast notifications** | Real-time feedback for saves, deletes, errors, and actions |
 
 ---
@@ -90,9 +95,11 @@ Open **http://localhost:3000** — that's it.
 |-----|-------------|
 | `http://localhost:3000` | Homepage |
 | `http://localhost:3000/login` | Sign in to your account |
-| `http://localhost:3000/docs` | Public documentation reader |
+| `http://localhost:3000/docs` | Documentation reader (login required) |
 | `http://localhost:3000/admin` | Admin dashboard (admin & editor roles) |
 | `http://localhost:3000/my-dashboard` | Minimal dashboard (viewer role) |
+| `http://localhost:3000/admin/users` | User management (admin only) |
+| `http://localhost:3000/admin/permissions` | Permission overrides dashboard (admin only) |
 | `http://localhost:3000/settings` | Storage, database, MCP & sharing config (admin only) |
 
 > **First run:** An admin account is auto-created (`admin@aidotmd.local`) with a random password printed to the server logs. Check the logs, then visit `/login` to sign in. Set `ADMIN_PASSWORD` in your `.env` file to use a known password instead of a random one.
@@ -121,27 +128,48 @@ Share that URL with anyone — they can read your published docs from any device
 
 > **Note:** The URL changes each time Docker restarts. For a permanent URL, see the upgrade guide below.
 
-### Configure the Copy Link Button
+### Share Links (Per-Document)
 
-By default, the **Copy Link** button on every doc page copies the current browser URL (e.g. `localhost:3000/docs/...`). To make it always copy a public URL:
+Each document has a **Share** button that lets you create tracked share links:
+
+| Button | Action |
+|--------|--------|
+| 🔗 **Share** | Opens the share modal to create and manage share links |
+| 🖨️ **Print / Save as PDF** | Opens the browser print dialog — choose "Save as PDF" for a clean PDF |
+| ✏️ **Edit** | Opens the admin editor for that document |
+
+**Creating a share link:**
+
+1. Click the Share button on any document
+2. Choose **View only** or **Can edit** permission
+3. Set an optional **expiry** (1 hour, 24 hours, 7 days, 30 days, or never)
+4. Set an optional **max uses** limit (1, 5, 10, 25, 100, or unlimited)
+5. Click **Create Share Link**
+
+**Managing share links:**
+
+- All active links for a document are shown in the Share modal
+- Each link shows: permission level, usage count (`3/10 uses`), and expiry date
+- Click **Copy** to copy the link URL: `https://...?share=dm_share_<token>`
+- Click **Delete** to revoke a link immediately
+
+**How share links work:**
+
+- The recipient does **not** need to log in
+- The sidebar only shows the shared document/section
+- Search is restricted to the shared resource
+- Each link is scoped to its specific document or section — a link for Doc A cannot access Doc B
+- Usage is tracked: `use_count` increments once per unique token validation
+- Expired or maxed-out links show a clear error message
+
+### Configure the Public URL
+
+By default, the **Copy** button uses your current browser URL. To use a custom public URL:
 
 1. Go to **Settings → Sharing**
 2. Paste your public URL (Cloudflare, ngrok, or any custom domain)
 3. Toggle **"Use public URL for sharing"** → ON
 4. Click **Save**
-
-From now on, Copy Link copies `https://your-public-url.com/docs/...` — even when you're browsing on localhost.
-
-### On Every Doc Page
-
-Each doc has three action buttons in the top-right corner:
-
-| Button | Action |
-|--------|--------|
-| 🔗 **Copy Link** | Copies the shareable URL (uses public URL if configured) |
-| 🖨️ **Print / Save as PDF** | Opens the browser print dialog — choose "Save as PDF" for a clean PDF |
-| ✏️ **Edit** | Opens the admin editor for that document |
-| 🔄 **Check Updates** | Check for new versions and view changelog directly from admin dashboard |
 
 ### Auto-Update System
 
@@ -166,12 +194,12 @@ The system checks GitHub releases and provides:
 
 ### Draft vs. Published
 
-Control which docs are visible to the public:
+Control which docs are visible to logged-in users:
 
-- **Published** — visible to anyone with the URL (default for all docs)
+- **Published** — visible to authenticated users who have access to the doc (default for all docs)
 - **Draft** — only visible in the admin panel; direct URLs return 404
 
-Toggle visibility in the doc editor under **Visibility** → Published / Draft.
+Drafts are skipped in the nav tree and search results for non-admin users. Toggle visibility in the doc editor under **Visibility** → Published / Draft.
 
 ---
 
@@ -269,19 +297,20 @@ If you lose the admin password, you have two options:
 
 ### Route Access by Role
 
-| Route | Public | Viewer | Editor | Admin |
-|-------|--------|--------|--------|-------|
-| `/` Homepage | ✅ | ✅ | ✅ | ✅ |
-| `/docs/*` Reader | ✅ | ✅ | ✅ | ✅ |
-| `/login` | ✅ | ➡️ redirect | ➡️ redirect | ➡️ redirect |
-| `/my-dashboard` | ❌ | ✅ | ✅ | ❌ |
-| `/admin` Dashboard | ❌ | ❌ | ✅ | ✅ |
-| `/admin/documents/*` | ❌ | ❌ | ✅ | ✅ |
-| `/admin/sections/*` | ❌ | ❌ | ✅ | ✅ |
-| `/admin/trash/*` | ❌ | ❌ | ❌ | ✅ |
-| `/admin/users/*` | ❌ | ❌ | ❌ | ✅ |
-| `/admin/updates/*` | ❌ | ❌ | ❌ | ✅ |
-| `/settings` | ❌ | ❌ | ❌ | ✅ |
+| Route | Public | Share Link | Viewer | Editor | Admin |
+|-------|--------|------------|--------|--------|-------|
+| `/` Homepage | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `/docs/*` Reader | ❌ | ✅ | ✅ | ✅ | ✅ |
+| `/login` | ✅ | ✅ | ➡️ redirect | ➡️ redirect | ➡️ redirect |
+| `/my-dashboard` | ❌ | ❌ | ✅ | ✅ | ❌ |
+| `/admin` Dashboard | ❌ | ❌ | ❌ | ✅ | ✅ |
+| `/admin/documents/*` | ❌ | ❌ | ❌ | ✅ | ✅ |
+| `/admin/sections/*` | ❌ | ❌ | ❌ | ✅ | ✅ |
+| `/admin/trash/*` | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `/admin/users/*` | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `/admin/permissions` | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `/admin/updates/*` | ❌ | ❌ | ❌ | ❌ | ✅ |
+| `/settings` | ❌ | ❌ | ❌ | ❌ | ✅ |
 
 ---
 
@@ -459,13 +488,18 @@ aidotmd/
 │   │   │   ├── documents.py
 │   │   │   ├── sections.py
 │   │   │   ├── stream.py       # SSE endpoints (/live, /live/status)
-│   │   │   ├── nav.py          # Sidebar tree builder
+│   │   │   ├── nav.py          # Sidebar tree builder (permission-filtered)
+│   │   │   ├── permissions.py  # Per-doc/section permission overrides CRUD
+│   │   │   ├── share_links.py  # Share link creation, listing, revocation
+│   │   │   ├── search.py       # Full-text search (permission-filtered)
 │   │   │   ├── trash.py        # Restore / permanent delete
 │   │   │   └── settings.py     # Settings CRUD + storage test
 │   │   ├── mcp/
 │   │   │   └── server.py       # FastMCP server (9 tools)
 │   │   ├── schemas/
-│   │   │   └── auth.py         # Pydantic models for auth requests/responses
+│   │   │   ├── auth.py         # Pydantic models for auth requests/responses
+│   │   │   ├── permission.py   # Permission CRUD schemas
+│   │   │   └── share_link.py   # Share link creation schemas
 │   │   └── services/
 │   │       ├── auth_service.py        # Password hashing, session management
 │   │       ├── user_service.py        # User CRUD, first-run admin creation
@@ -488,15 +522,19 @@ aidotmd/
         │   ├── admin/
         │   │   ├── Dashboard.tsx    # Admin overview with stats + quick actions
         │   │   ├── Users.tsx        # User creation, role management, password reset
+        │   │   ├── Permissions.tsx  # Centralized permission overrides management
         │   │   ├── Documents.tsx    # Document list with drag-and-drop reorder
-        │   │   ├── DocumentEdit.tsx # Markdown editor + metadata
-        │   │   └── Sections.tsx     # Hierarchical section management
+        │   │   ├── DocumentEdit.tsx # Markdown editor + metadata + permission manager
+        │   │   └── Sections.tsx     # Hierarchical section management + per-section permissions
         │   └── Settings.tsx         # DB / Storage / MCP / Sharing config
         ├── components/
         │   ├── AuthGuard.tsx        # Redirects unauthenticated users to /login
         │   ├── AdminRoute.tsx       # Restricts routes to admin/editor roles
         │   ├── AdminOnlyGuard.tsx   # Restricts routes to admin role only
         │   ├── AdminGuard.tsx       # Checks auth + share token for admin access
+        │   ├── DocsGuard.tsx        # Checks auth + share token for doc access
+        │   ├── admin/PermissionManager.tsx  # Per-doc/section permission dialog
+        │   ├── ShareModal.tsx       # Share link creation and management modal
         │   ├── MarkdownRenderer.tsx
         │   ├── DocsSidebar.tsx
         │   ├── ui/Toaster.tsx       # Toast notification container
@@ -570,9 +608,12 @@ aidotmd/
 | **AI agent writes docs** | ✅ Native MCP | ❌ | ❌ | ❌ |
 | **Live streaming render** | ✅ SSE | ❌ | ❌ | ❌ |
 | **Version history** | ✅ | ⚠️ Paid | ⚠️ Paid | ❌ |
+| **Role-based access control** | ✅ Admin/Editor/Viewer | ✅ | ⚠️ Paid | ❌ |
+| **Per-doc permissions** | ✅ Read/Write overrides | ✅ | ⚠️ Paid | ❌ |
+| **Tracked share links** | ✅ Expiry + usage caps | ✅ | ❌ | ❌ |
 | **Self-hosted** | ✅ | ❌ | Paid only | ✅ |
 | **Single-command launch** | ✅ Docker | ❌ | ❌ | ⚠️ Manual |
-| **Share via link (no copy-paste)** | ✅ Built-in | ✅ | ✅ | ❌ |
+| **Share via link** | ✅ | ✅ | ✅ | ❌ |
 | **PDF export** | ✅ | ⚠️ Paid | ⚠️ Paid | ❌ |
 | **No build step for content** | ✅ | ✅ | ✅ | ❌ |
 | **Open source** | ✅ MIT | ❌ | ❌ | ✅ |
