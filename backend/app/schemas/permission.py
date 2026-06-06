@@ -17,6 +17,7 @@ class PermissionUpdate(BaseModel):
 class PermissionOut(BaseModel):
     id: str
     user_id: str
+    user_display_name: Optional[str] = None
     document_id: Optional[str] = None
     section_id: Optional[str] = None
     permission: str

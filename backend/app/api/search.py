@@ -21,9 +21,12 @@ router = APIRouter(prefix="/api/v1/search", tags=["search"])
 
 @router.get("", response_model=List[SearchResult])
 async def search(q: str = Query(default=""), request: Request = None, db: AsyncSession = Depends(get_db)):
-    results = await search_service.search(db, q)
-    if not results:
+    raw = await search_service.search(db, q)
+    if not raw:
         return []
+
+    # Convert dict results to SearchResult objects for attribute access
+    results = [SearchResult(**r) for r in raw]
 
     user = getattr(request.state, "user", None) if request else None
     link = getattr(request.state, "share_link", None) if request else None

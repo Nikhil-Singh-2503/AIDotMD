@@ -43,7 +43,21 @@ async def list_permissions(
     if section_id:
         query = query.where(DocPermissionModel.section_id == section_id)
     result = await db.execute(query.order_by(DocPermissionModel.created_at.desc()))
-    return [PermissionOut.model_validate(p) for p in result.scalars().all()]
+    perms = result.scalars().all()
+
+    user_ids = {p.user_id for p in perms} | {p.granted_by for p in perms}
+    if user_ids:
+        users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+        user_map = {u.id: u.display_name for u in users_result.scalars().all()}
+    else:
+        user_map = {}
+
+    out = []
+    for p in perms:
+        po = PermissionOut.model_validate(p)
+        po.user_display_name = user_map.get(p.user_id)
+        out.append(po)
+    return out
 
 
 @router.post("", response_model=PermissionOut, status_code=201)

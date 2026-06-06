@@ -63,6 +63,7 @@ _WRITE_EXEMPT_PREFIXES = ("/api/v1/docs/",)  # SSE stream commits
 # Read paths that are completely public
 _PUBLIC_GET_PREFIXES = (
     "/api/v1/meta",
+    "/api/v1/version",
 )
 
 @app.middleware("http")

@@ -57,8 +57,6 @@ async def get_session_by_token(db: AsyncSession, token: str) -> Optional[Session
         select(Session).where(Session.token == token_hash, Session.expires_at > datetime.now(timezone.utc))
     )
     session = result.scalar_one_or_none()
-    if session:
-        session.token = token
     return session
 
 

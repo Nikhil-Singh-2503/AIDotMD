@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     MCP_API_KEY: str = ""
 
     # Update system - overridden by .env if provided
-    VERSION: str = "1.1.0"
+    VERSION: str = "1.2.0"
     BUILD: str = ""
     GITHUB_REPO: str = "Nikhil-Singh-2503/AIDotMD"
 

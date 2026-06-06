@@ -86,7 +86,7 @@ class DocPermission(Base):
     document_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("documents.id", ondelete="CASCADE"), nullable=True)
     section_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("sections.id", ondelete="CASCADE"), nullable=True)
     permission: Mapped[str] = mapped_column(String(50), nullable=False)
-    granted_by: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
+    granted_by: Mapped[str] = mapped_column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

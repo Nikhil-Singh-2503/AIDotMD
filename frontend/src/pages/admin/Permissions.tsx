@@ -20,7 +20,7 @@ interface Document {
 }
 
 interface Permission {
-  id: string; user_id: string; document_id?: string | null; section_id?: string | null
+  id: string; user_id: string; user_display_name?: string | null; document_id?: string | null; section_id?: string | null
   permission: string; granted_by: string; created_at: string
 }
 
@@ -107,14 +107,14 @@ export default function AdminPermissions() {
     onError: (err: any) => toast({ title: 'Failed', description: err.message, variant: 'error' }),
   })
 
-  const userName = (id: string) => users.find(u => u.id === id)?.display_name || id.slice(0, 8)
+  const userName = (id: string, displayName?: string | null) => displayName || users.find(u => u.id === id)?.display_name || id.slice(0, 8)
   const sectionTitle = (id: string) => sections.find(s => s.id === id)?.title || id.slice(0, 8)
   const docTitle = (id: string) => documents.find(d => d.id === id)?.title || id.slice(0, 8)
 
   const filtered = permissions.filter(p => {
     if (!search) return true
     const q = search.toLowerCase()
-    return userName(p.user_id).toLowerCase().includes(q)
+    return userName(p.user_id, p.user_display_name).toLowerCase().includes(q)
       || (p.document_id && docTitle(p.document_id).toLowerCase().includes(q))
       || (p.section_id && sectionTitle(p.section_id).toLowerCase().includes(q))
   })
@@ -181,9 +181,9 @@ export default function AdminPermissions() {
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
-                        {userName(p.user_id).charAt(0).toUpperCase()}
+                        {userName(p.user_id, p.user_display_name).charAt(0).toUpperCase()}
                       </div>
-                      <span className="font-medium">{userName(p.user_id)}</span>
+                      <span className="font-medium">{userName(p.user_id, p.user_display_name)}</span>
                     </div>
                   </td>
                   <td className="p-3">
