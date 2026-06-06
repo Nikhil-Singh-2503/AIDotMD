@@ -118,10 +118,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         })}
       </nav>
 
-      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
-
-      <div className="border-t p-3 space-y-2">
-        {user && !collapsed && (
+      <div className="border-t p-3 space-y-2">{(user && !collapsed) && (
           <button
             onClick={() => setShowProfile(true)}
             className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted transition-colors text-left"
@@ -209,6 +206,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background">
+      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
       <aside
         className={cn(
           'fixed left-0 top-0 z-50 h-screen border-r bg-card transition-all duration-300',
@@ -284,6 +282,21 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </nav>
 
           <div className="border-t p-3 space-y-2">
+            {user && (
+              <button
+                onClick={() => { setShowProfile(true); setMobileOpen(false) }}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted transition-colors text-left"
+              >
+                <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+                  {user.display_name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium truncate">{user.display_name}</p>
+                  <p className="text-[10px] text-muted-foreground capitalize">{user.role}</p>
+                </div>
+                <User className="w-3 h-3 text-muted-foreground shrink-0" />
+              </button>
+            )}
             <div className="flex items-center gap-2 px-2">
               <ThemeToggle />
             </div>
