@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { useToast } from '@/hooks/useToast'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 
 // ── tiny helpers ─────────────────────────────────────────────────────────────
@@ -366,6 +368,7 @@ function IntegrationBlock({
 
 function McpTab({ settings }: { settings: AppSettings }) {
   const qc = useQueryClient()
+  const { toast } = useToast()
   const [key, setKey] = useState(settings.mcp_api_key)
   const [showKey, setShowKey] = useState(false)
 
@@ -374,7 +377,9 @@ function McpTab({ settings }: { settings: AppSettings }) {
     onSuccess: (res) => {
       setKey(res.mcp_api_key)
       qc.invalidateQueries({ queryKey: ['settings'] })
+      toast({ title: 'API key regenerated', description: 'Old key has been invalidated.', variant: 'warning' })
     },
+    onError: (err: any) => toast({ title: 'Failed to regenerate key', description: err.message, variant: 'error' }),
   })
 
   const maskedKey = key ? `${key.slice(0, 12)}${'•'.repeat(20)}` : '—'
@@ -609,6 +614,8 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 
 export default function Settings() {
   const [tab, setTab] = useState<Tab>('database')
+  const { user } = useAuth()
+  const canEdit = user?.role === 'admin'
 
   const { data: settings, isLoading, error } = useQuery({
     queryKey: ['settings'],
@@ -646,8 +653,9 @@ export default function Settings() {
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure your AIDotMd instance. Settings are saved to{' '}
-            <code className="font-mono text-xs">data/aidotmd.config.json</code>.
+            {canEdit
+              ? 'Configure your AIDotMd instance. Settings are saved to data/aidotmd.config.json.'
+              : 'Viewing settings in read-only mode. Only admins can modify settings.'}
           </p>
         </div>
 

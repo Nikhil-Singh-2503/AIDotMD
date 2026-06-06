@@ -4,6 +4,7 @@ import { api, type Section, type Document } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useToast } from '@/hooks/useToast'
 import { RefreshCw, Trash2, X, AlertTriangle } from 'lucide-react'
 
 function TrashItemRow({ 
@@ -47,6 +48,7 @@ function TrashItemRow({
 
 export default function AdminTrash() {
   const qc = useQueryClient()
+  const { toast } = useToast()
   const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; id: string; type: 'section' | 'document'; title: string } | null>(null)
 
   const { data: trashData, isLoading } = useQuery({
@@ -61,17 +63,18 @@ export default function AdminTrash() {
       qc.invalidateQueries({ queryKey: ['sections'] })
       qc.invalidateQueries({ queryKey: ['documents'] })
       qc.invalidateQueries({ queryKey: ['nav'] })
-      // optional toast('Restored successfully') if toaster imported
+      toast({ title: 'Item restored', variant: 'success' })
     },
-    onError: (err: any) => alert(err.message)
+    onError: (err: any) => toast({ title: 'Failed to restore', description: err.message, variant: 'error' })
   })
 
   const hardDelete = useMutation({
     mutationFn: ({ id, type }: { id: string, type: 'section' | 'document' }) => api.trash.hardDelete(id, type),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['trash'] })
+      toast({ title: 'Item permanently deleted', variant: 'warning' })
     },
-    onError: (err: any) => alert(err.message)
+    onError: (err: any) => toast({ title: 'Failed to delete', description: err.message, variant: 'error' })
   })
 
   if (isLoading) {

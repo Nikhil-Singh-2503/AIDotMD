@@ -6,7 +6,9 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Trash2, GripVertical, ChevronRight, Plus } from 'lucide-react'
+import { useToast } from '@/hooks/useToast'
+import { PermissionManager } from '@/components/admin/PermissionManager'
+import { Trash2, GripVertical, ChevronRight, Plus, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DndContext,
@@ -32,6 +34,7 @@ function SortableRow({
   childCount,
   onToggle,
   onDelete,
+  onManageAccess,
 }: {
   s: Section
   depth: number
@@ -40,6 +43,7 @@ function SortableRow({
   childCount: number
   onToggle?: () => void
   onDelete: (id: string) => void
+  onManageAccess: (id: string) => void
 }) {
   const {
     attributes,
@@ -106,7 +110,14 @@ function SortableRow({
           </button>
         </div>
 
-        {/* Right: delete */}
+        {/* Right: permissions + delete */}
+        <button
+          onClick={() => onManageAccess(s.id)}
+          className="text-muted-foreground hover:text-foreground transition-colors shrink-0 p-1"
+          title="Manage access"
+        >
+          <Shield className="w-3.5 h-3.5" />
+        </button>
         <button
           onClick={() => onDelete(s.id)}
           className="text-muted-foreground hover:text-red-500 transition-colors shrink-0 p-1"
@@ -122,6 +133,8 @@ type FlatSection = { section: Section; depth: number }
 
 export default function AdminSections() {
   const qc = useQueryClient()
+  const { toast } = useToast()
+  const [permSectionId, setPermSectionId] = useState<string | null>(null)
 
   // ── Form state ─────────────────────────────────────────────────────────────
   const [newTitle, setNewTitle] = useState('')
@@ -165,18 +178,27 @@ export default function AdminSections() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sections'] })
       setNewTitle('')
-      // Keep newParentId as-is (spec: clear title only on success)
+      toast({ title: 'Section created', variant: 'success' })
     },
+    onError: (err: any) => toast({ title: 'Failed to create section', description: err.message, variant: 'error' }),
   })
 
   const remove = useMutation({
     mutationFn: (id: string) => api.sections.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sections'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sections'] })
+      toast({ title: 'Section moved to trash', variant: 'success' })
+    },
+    onError: (err: any) => toast({ title: 'Failed to delete section', description: err.message, variant: 'error' }),
   })
 
   const reorder = useMutation({
     mutationFn: (ids: string[]) => api.sections.reorder(ids),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['sections'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sections'] })
+      toast({ title: 'Order updated', variant: 'success' })
+    },
+    onError: (err: any) => toast({ title: 'Failed to reorder', description: err.message, variant: 'error' }),
   })
 
   // ── DnD ────────────────────────────────────────────────────────────────────
@@ -243,6 +265,7 @@ export default function AdminSections() {
                   childCount={children.length}
                   onToggle={() => toggleExpanded(s.id)}
                   onDelete={id => remove.mutate(id)}
+                  onManageAccess={id => setPermSectionId(id)}
                 />
                 {isExpanded && children.length > 0 && renderLevel(s.id, depth + 1)}
               </div>
@@ -358,6 +381,15 @@ export default function AdminSections() {
         </div>
 
       </div>
+
+      {permSectionId && (
+        <PermissionManager
+          sectionId={permSectionId}
+          mode="section"
+          open={!!permSectionId}
+          onClose={() => setPermSectionId(null)}
+        />
+      )}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useState } from 'react'
+import { useToast } from '@/hooks/useToast'
 import { Pencil, Trash2, Plus, GripVertical } from 'lucide-react'
 import {
   DndContext,
@@ -83,6 +84,8 @@ function SortableRow({
 export default function AdminDocuments() {
   const qc = useQueryClient()
   const navigate = useNavigate()
+  const { toast } = useToast()
+
   useQuery({ queryKey: ['settings'], queryFn: api.settings.get })
   useQuery({ queryKey: ['meta'], queryFn: api.meta.get, staleTime: Infinity })
   const [sectionFilter, setSectionFilter] = useState<string>('all')
@@ -96,13 +99,21 @@ export default function AdminDocuments() {
 
   const remove = useMutation({
     mutationFn: (id: string) => api.documents.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] })
+      toast({ title: 'Document moved to trash', variant: 'success' })
+    },
+    onError: (err: any) => toast({ title: 'Failed to delete', description: err.message, variant: 'error' }),
   })
 
   const reorder = useMutation({
     mutationFn: ({ section_id, ids }: { section_id: string; ids: string[] }) =>
       api.documents.reorder(section_id, ids),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] })
+      toast({ title: 'Order updated', variant: 'success' })
+    },
+    onError: (err: any) => toast({ title: 'Failed to reorder', description: err.message, variant: 'error' }),
   })
 
   const sensors = useSensors(useSensor(PointerSensor))

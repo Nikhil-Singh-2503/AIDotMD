@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -18,6 +19,9 @@ import {
   BookOpen,
   Menu,
   X,
+  Users,
+  LogOut,
+  Shield,
 } from 'lucide-react'
 
 interface AdminLayoutProps {
@@ -25,12 +29,14 @@ interface AdminLayoutProps {
 }
 
 const navItems = [
-  { path: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/admin/documents', label: 'Documents', icon: FileText },
-  { path: '/admin/sections', label: 'Sections', icon: Folder },
-  { path: '/admin/trash', label: 'Trash', icon: Trash2 },
-  { path: '/settings', label: 'Settings', icon: Settings },
-  { path: '/admin/updates', label: 'Updates', icon: RefreshCw },
+  { path: '/admin', label: 'Dashboard', icon: LayoutDashboard, adminOnly: false },
+  { path: '/admin/documents', label: 'Documents', icon: FileText, adminOnly: false },
+  { path: '/admin/sections', label: 'Sections', icon: Folder, adminOnly: false },
+  { path: '/admin/users', label: 'Users', icon: Users, adminOnly: true },
+  { path: '/admin/permissions', label: 'Permissions', icon: Shield, adminOnly: true },
+  { path: '/admin/trash', label: 'Trash', icon: Trash2, adminOnly: true },
+  { path: '/settings', label: 'Settings', icon: Settings, adminOnly: true },
+  { path: '/admin/updates', label: 'Updates', icon: RefreshCw, adminOnly: true },
 ]
 
 export function AdminLayout({ children }: AdminLayoutProps) {
@@ -38,6 +44,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
 
   const { data: versionData } = useQuery({
     queryKey: ['version'],
@@ -63,6 +70,118 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     setMobileOpen(false)
   }
 
+  const visibleNavItems = navItems.filter(
+    item => !item.adminOnly || user?.role === 'admin'
+  )
+
+  const sidebarContent = (
+    <>
+      <div className="flex h-14 items-center border-b px-4" style={{ justifyContent: collapsed ? 'center' : 'space-between' }}>
+        {!collapsed && (
+          <Link to="/" className="flex items-center gap-2 font-semibold hover:opacity-80">
+            <BookOpen className="h-5 w-5" />
+            <span>AIDotMD</span>
+          </Link>
+        )}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="rounded-md p-1.5 hover:bg-muted"
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </button>
+      </div>
+
+      <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
+        {visibleNavItems.map((item) => {
+          const Icon = item.icon
+          const active = isActive(item.path)
+          return (
+            <button
+              key={item.path}
+              onClick={() => handleNavClick(item.path)}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors w-full text-left',
+                active
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                collapsed && 'justify-center px-2'
+              )}
+              title={collapsed ? item.label : undefined}
+            >
+              <Icon className="h-5 w-5 flex-shrink-0" />
+              {!collapsed && <span>{item.label}</span>}
+            </button>
+          )
+        })}
+      </nav>
+
+      <div className="border-t p-3 space-y-2">
+        {user && !collapsed && (
+          <div className="px-2 py-1 text-xs text-muted-foreground truncate">
+            {user.display_name}
+          </div>
+        )}
+        {!collapsed && versionData?.version && (
+          <div className="px-2 py-1 text-xs text-muted-foreground">
+            v{versionData.version}
+          </div>
+        )}
+        <div className={cn(!collapsed ? 'space-y-2' : 'flex flex-col items-center gap-2')}>
+          <div className={cn(!collapsed ? '' : 'flex flex-col items-center gap-2')}>
+            <div className={cn(!collapsed ? 'flex items-center gap-2' : '')}>
+              <ThemeToggle />
+            </div>
+            {!collapsed ? (
+              <div className="flex flex-col gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-xs"
+                  onClick={() => navigate('/docs')}
+                >
+                  <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                  View Site
+                </Button>
+                {user && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-xs text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
+                    onClick={() => { logout(); navigate('/login') }}
+                  >
+                    <LogOut className="mr-2 h-3.5 w-3.5" />
+                    Sign out
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate('/docs')}
+                  title="View Site"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+                {user && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => { logout(); navigate('/login') }}
+                    title="Sign out"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+
   return (
     <div className="min-h-screen bg-background">
       <aside
@@ -72,76 +191,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           'hidden lg:flex flex-col'
         )}
       >
-        <div className="flex h-14 items-center border-b px-4" style={{ justifyContent: collapsed ? 'center' : 'space-between' }}>
-          {!collapsed && (
-            <Link to="/" className="flex items-center gap-2 font-semibold hover:opacity-80">
-              <BookOpen className="h-5 w-5" />
-              <span>AIDotMD</span>
-            </Link>
-          )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="rounded-md p-1.5 hover:bg-muted"
-          >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </button>
-        </div>
-
-        <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon
-            const active = isActive(item.path)
-            return (
-              <button
-                key={item.path}
-                onClick={() => handleNavClick(item.path)}
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors w-full text-left',
-                  active
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                  collapsed && 'justify-center px-2'
-                )}
-                title={collapsed ? item.label : undefined}
-              >
-                <Icon className="h-5 w-5 flex-shrink-0" />
-                {!collapsed && <span>{item.label}</span>}
-              </button>
-            )
-          })}
-        </nav>
-
-        <div className="border-t p-2">
-          {!collapsed && versionData?.version && (
-            <div className="mb-2 px-3 py-1.5 text-xs text-muted-foreground">
-              v{versionData.version}
-            </div>
-          )}
-          <div className={cn('flex items-center gap-2', collapsed ? 'flex-col' : 'px-2')}>
-            <ThemeToggle />
-            {!collapsed && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => navigate('/docs')}
-              >
-                <ExternalLink className="mr-2 h-4 w-4" />
-                View Site
-              </Button>
-            )}
-            {collapsed && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/docs')}
-                title="View Site"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </div>
+        {sidebarContent}
       </aside>
 
       <div className="lg:hidden">
@@ -156,9 +206,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <BookOpen className="h-5 w-5" />
             <span>AIDotMD</span>
           </Link>
-          {versionData?.version && (
-            <span className="ml-auto text-sm text-muted-foreground">v{versionData.version}</span>
-          )}
+          {user && <span className="ml-auto text-sm text-muted-foreground">{user.display_name}</span>}
         </div>
 
         <div
@@ -189,7 +237,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
 
           <nav className="flex-1 space-y-1 p-2 overflow-y-auto">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon
               const active = isActive(item.path)
               return (
@@ -210,18 +258,31 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             })}
           </nav>
 
-          <div className="border-t p-2">
+          <div className="border-t p-3 space-y-2">
             <div className="flex items-center gap-2 px-2">
               <ThemeToggle />
+            </div>
+            <div className="flex flex-col gap-1 px-2">
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex-1 justify-start"
-                onClick={() => navigate('/docs')}
+                className="w-full justify-start text-xs"
+                onClick={() => { navigate('/docs'); setMobileOpen(false) }}
               >
-                <ExternalLink className="mr-2 h-4 w-4" />
+                <ExternalLink className="mr-2 h-3.5 w-3.5" />
                 View Site
               </Button>
+              {user && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-xs text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950"
+                  onClick={() => { logout(); navigate('/login'); setMobileOpen(false) }}
+                >
+                  <LogOut className="mr-2 h-3.5 w-3.5" />
+                  Sign out
+                </Button>
+              )}
             </div>
           </div>
         </div>

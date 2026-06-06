@@ -4,6 +4,7 @@ import { api, type Document, type Section } from '@/api/client'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
 import {
   FileText,
@@ -14,6 +15,8 @@ import {
   Plus,
   Clock,
   ArrowRight,
+  Shield,
+  Users,
 } from 'lucide-react'
 import { UpdateWidget } from '@/components/admin/UpdateWidget'
 
@@ -81,6 +84,8 @@ function QuickAction({ title, description, icon, to, variant = 'default' }: Quic
 
 export default function Dashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const { data: versionData } = useQuery({
     queryKey: ['version'],
     queryFn: async () => {
@@ -97,6 +102,23 @@ export default function Dashboard() {
   const { data: sections = [] } = useQuery({ queryKey: ['sections'], queryFn: api.sections.list })
   const { data: documents = [] } = useQuery({ queryKey: ['documents'], queryFn: () => api.documents.list() })
   const { data: trashData } = useQuery({ queryKey: ['trash'], queryFn: api.trash.list })
+
+  const { data: permissionCount } = useQuery({
+    queryKey: ['permission-count'],
+    queryFn: async () => {
+      try {
+        const token = localStorage.getItem('aidotmd_session_token')
+        const res = await fetch('/api/v1/permissions', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return []
+        return res.json()
+      } catch {
+        return []
+      }
+    },
+    enabled: isAdmin,
+  })
 
   const version = versionData?.version || 'N/A'
 
@@ -139,17 +161,30 @@ export default function Dashboard() {
           icon={<Folder className="h-5 w-5" />}
           variant="success"
         />
-        <StatCard
-          title="In Trash"
-          value={totalTrash}
-          icon={<Trash2 className="h-5 w-5" />}
-          variant={totalTrash > 0 ? 'warning' : 'default'}
-        />
-        <StatCard
-          title="Version"
-          value={version}
-          icon={<Settings className="h-5 w-5" />}
-        />
+        {isAdmin && (
+          <StatCard
+            title="In Trash"
+            value={totalTrash}
+            icon={<Trash2 className="h-5 w-5" />}
+            variant={totalTrash > 0 ? 'warning' : 'default'}
+          />
+        )}
+        {isAdmin && (
+          <StatCard
+            title="Version"
+            value={version}
+            icon={<Settings className="h-5 w-5" />}
+          />
+        )}
+        {isAdmin && (
+          <StatCard
+            title="Permissions"
+            value={Array.isArray(permissionCount) ? permissionCount.length : 0}
+            icon={<Shield className="h-5 w-5" />}
+            subtitle="custom overrides"
+            variant="default"
+          />
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -169,18 +204,38 @@ export default function Dashboard() {
               icon={<Folder className="h-5 w-5" />}
               to="/admin/sections"
             />
-            <QuickAction
-              title="View Trash"
-              description={`${totalTrash} items pending deletion`}
-              icon={<Trash2 className="h-5 w-5" />}
-              to="/admin/trash"
-            />
-            <QuickAction
-              title="Check Updates"
-              description="View system version and updates"
-              icon={<RefreshCw className="h-5 w-5" />}
-              to="/admin/updates"
-            />
+            {isAdmin && (
+              <QuickAction
+                title="Manage Users"
+                description="Create, edit, and manage user accounts"
+                icon={<Users className="h-5 w-5" />}
+                to="/admin/users"
+              />
+            )}
+            {isAdmin && (
+              <QuickAction
+                title="Manage Permissions"
+                description="Set per-document and per-section access overrides"
+                icon={<Shield className="h-5 w-5" />}
+                to="/admin/permissions"
+              />
+            )}
+            {isAdmin && (
+              <QuickAction
+                title="View Trash"
+                description={`${totalTrash} items pending deletion`}
+                icon={<Trash2 className="h-5 w-5" />}
+                to="/admin/trash"
+              />
+            )}
+            {isAdmin && (
+              <QuickAction
+                title="Check Updates"
+                description="View system version and updates"
+                icon={<RefreshCw className="h-5 w-5" />}
+                to="/admin/updates"
+              />
+            )}
           </div>
 
           <div className="mt-6">
@@ -234,10 +289,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">System Status</h2>
-          <UpdateWidget />
-        </div>
+        {isAdmin && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">System Status</h2>
+            <UpdateWidget />
+          </div>
+        )}
       </div>
     </div>
   )

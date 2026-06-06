@@ -16,7 +16,7 @@ function MermaidBlock({ code }: { code: string }) {
   useEffect(() => {
     if (!ref.current) return
     import('mermaid').then(({ default: mermaid }) => {
-      mermaid.initialize({ startOnLoad: false, theme: 'default' })
+      mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'strict' })
       const id = `mermaid-${Math.random().toString(36).slice(2)}`
       mermaid.render(id, code).then(({ svg }) => {
         if (ref.current) ref.current.innerHTML = svg

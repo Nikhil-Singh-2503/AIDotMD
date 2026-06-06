@@ -9,15 +9,19 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { MarkdownEditor } from '@/components/MarkdownEditor'
-import { ArrowLeft, Upload } from 'lucide-react'
+import { useToast } from '@/hooks/useToast'
+import { ArrowLeft, Upload, Shield } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { VersionHistoryModal } from '@/components/VersionHistoryModal'
+import { PermissionManager } from '@/components/admin/PermissionManager'
 
 export default function AdminDocumentEdit() {
   const { id } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { toast } = useToast()
   const isNew = !id
+  const [permOpen, setPermOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const mdFileRef = useRef<HTMLInputElement>(null)
 
@@ -46,7 +50,12 @@ export default function AdminDocumentEdit() {
 
   const save = useMutation({
     mutationFn: () => isNew ? api.documents.create(form) : api.documents.update(id!, form),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['documents'] }); navigate('/admin') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] })
+      toast({ title: isNew ? 'Document created' : 'Document saved', variant: 'success' })
+      navigate('/admin')
+    },
+    onError: (err: any) => toast({ title: 'Failed to save', description: err.message, variant: 'error' }),
   })
 
   const uploadImg = useMutation({
@@ -54,7 +63,9 @@ export default function AdminDocumentEdit() {
     onSuccess: (data) => {
       setUploadedImageUrl(data.url)
       setForm(f => ({ ...f, content: f.content + `\n![image](${data.url})` }))
+      toast({ title: 'Image uploaded', variant: 'success' })
     },
+    onError: (err: any) => toast({ title: 'Image upload failed', description: err.message, variant: 'error' }),
   })
 
   return (
@@ -66,13 +77,18 @@ export default function AdminDocumentEdit() {
         <h1 className="text-2xl font-bold">{isNew ? 'New Document' : 'Edit Document'}</h1>
         <div className="ml-auto flex items-center gap-1">
           {!isNew && id && (
-            <VersionHistoryModal
-              id={id}
-              mode="document"
-              onRestored={() => {
-                qc.invalidateQueries({ queryKey: ['document', id] })
-              }}
-            />
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setPermOpen(true)} className="text-muted-foreground/50 hover:text-foreground">
+                <Shield className="w-4 h-4" />
+              </Button>
+              <VersionHistoryModal
+                id={id}
+                mode="document"
+                onRestored={() => {
+                  qc.invalidateQueries({ queryKey: ['document', id] })
+                }}
+              />
+            </>
           )}
           <ThemeToggle />
         </div>
@@ -195,6 +211,15 @@ export default function AdminDocumentEdit() {
           </div>
         </div>
       </div>
+
+      {id && (
+        <PermissionManager
+          documentId={id}
+          mode="document"
+          open={permOpen}
+          onClose={() => setPermOpen(false)}
+        />
+      )}
     </div>
   )
 }

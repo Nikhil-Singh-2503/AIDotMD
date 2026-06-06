@@ -226,7 +226,7 @@ export default function DocPage() {
           )}
         </div>
         <div className="flex items-center gap-1 shrink-0 print:hidden">
-          <ShareModal docPath={window.location.pathname} settings={settings} />
+          <ShareModal docPath={window.location.pathname} documentId={doc.id} settings={settings} />
           <Button
             variant="ghost"
             size="sm"

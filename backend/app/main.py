@@ -1,10 +1,13 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
+from hmac import compare_digest
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from app.db import init_db
+from sqlalchemy import select
+from app.db import init_db, SessionLocal
 from app.config import get_settings
 from app.api import (
     sections,
@@ -17,8 +20,12 @@ from app.api import (
     meta as meta_router,
     trash,
     updates as updates_router,
+    auth as auth_router,
+    admin_users,
+    permissions as permissions_router,
+    share_links as share_links_router,
 )
-from app.services import settings_service
+from app.services import settings_service, auth_service, user_service
 from app.mcp.server import mcp
 
 _settings = get_settings()
@@ -35,63 +42,104 @@ async def combined_lifespan(app: FastAPI):
     Path(_settings.STATIC_DIR).mkdir(parents=True, exist_ok=True)
     Path(_settings.DATA_DIR).mkdir(parents=True, exist_ok=True)
     settings_service.ensure_mcp_key()
-    settings_service.ensure_share_token()
+
+    # Ensure admin user (first-run) and MCP service account
+    async with SessionLocal() as db:
+        await user_service.ensure_admin_user(db)
+        await user_service.ensure_mcp_user(db)
+
     # Start fastmcp's internal session manager / task groups
     async with mcp_app.lifespan(mcp_app):
         yield
 
 
-app = FastAPI(title="AIDotMd API", version="1.0.0", lifespan=combined_lifespan)
+app = FastAPI(title="AIDotMd API", version=_settings.VERSION, lifespan=combined_lifespan)
 
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 # Write paths that are exempt (SSE commits happen via POST but from the MCP agent
 # which has its own auth; /mcp/* is handled separately below)
 _WRITE_EXEMPT_PREFIXES = ("/api/v1/docs/",)  # SSE stream commits
 
-# Read paths that are completely public (for the public-facing documentation viewer)
+# Read paths that are completely public
 _PUBLIC_GET_PREFIXES = (
-    "/api/v1/nav/tree",
-    "/api/v1/search",
-    "/api/v1/documents/by-slug",
     "/api/v1/meta",
+    "/api/v1/version",
 )
 
-_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
-
 @app.middleware("http")
-async def share_token_middleware(request: Request, call_next):
-    is_api = request.url.path.startswith("/api/v1/")
-    
-    # If not an API request, let it pass (static files, /mcp, etc)
-    if not is_api:
+async def auth_middleware(request: Request, call_next):
+    api_path = request.url.path
+
+    # Public paths — no auth required
+    if api_path.startswith("/api/v1/auth/login") or api_path.startswith("/api/v1/auth/me"):
         return await call_next(request)
 
-    # Exemption for specific write paths
-    if request.method in _WRITE_METHODS and any(
-        request.url.path.startswith(p) for p in _WRITE_EXEMPT_PREFIXES
+    # Non-API paths — let through (static, MCP, etc)
+    if not api_path.startswith("/api/v1/"):
+        return await call_next(request)
+
+    # Public GET endpoints
+    if request.method == "GET" and any(
+        api_path.startswith(p) for p in _PUBLIC_GET_PREFIXES
     ):
         return await call_next(request)
 
-    # If it's a GET request, check if it's in the public whitelist
-    if request.method == "GET":
-        if any(request.url.path.startswith(p) for p in _PUBLIC_GET_PREFIXES):
-            return await call_next(request)
-
-    # For all other requests (unlisted GETs, and all non-exempt WRITEs), require auth:
-    host = request.headers.get("host", "").split(":")[0]
-    is_local = host in _LOCAL_HOSTS
-
-    # Local admin — full access
-    if is_local:
+    # Auth endpoints (register, change-password, logout) require a valid user
+    if api_path.startswith("/api/v1/auth/"):
         return await call_next(request)
 
-    # Non-local → require valid share edit token
-    stored = settings_service.get_share_token()
-    token = request.headers.get("x-share-token", "")
-    if not token or token != stored:
-        return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+    # Admin user endpoints
+    if api_path.startswith("/api/v1/admin/users"):
+        return await call_next(request)
 
-    return await call_next(request)
+    # Check share link token FIRST
+    share_token = request.headers.get("x-share-token", "") or request.query_params.get("share", "")
+    if share_token:
+        from app.models.models import ShareLink
+        async with SessionLocal() as db:
+            result = await db.execute(
+                select(ShareLink).where(
+                    ShareLink.token == share_token,
+                )
+            )
+            link = result.scalar_one_or_none()
+            if link:
+                now = datetime.now(timezone.utc).replace(tzinfo=None)
+                expires = link.expires_at.replace(tzinfo=None) if link.expires_at and link.expires_at.tzinfo else link.expires_at
+                if expires and expires < now:
+                    return JSONResponse({"detail": "Share link has expired"}, status_code=401)
+                if link.max_uses and link.use_count >= link.max_uses:
+                    return JSONResponse({"detail": "Share link has reached maximum uses"}, status_code=401)
+                # Atomic count: UPDATE ... SET use_count = use_count + 1 WHERE token = ?
+                link.use_count += 1
+                link.last_accessed_at = datetime.now(timezone.utc)
+                await db.commit()
+                if link.use_count is not None:
+                    link.use_count += 1  # keep in-memory copy in sync
+                request.state.share_link = link
+
+    # Check for valid session token
+    auth_header = request.headers.get("authorization", "")
+    token = ""
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()
+    if not token:
+        token = request.cookies.get("aidotmd_session", "")
+
+    if token:
+        async with SessionLocal() as db:
+            session = await auth_service.get_session_by_token(db, token)
+            if session:
+                user = await user_service.get_by_id(db, session.user_id)
+                if user and user.is_active:
+                    request.state.user = user
+                    return await call_next(request)
+
+    # Allow if share link was validated above
+    if share_token and hasattr(request.state, 'share_link') and request.state.share_link:
+        return await call_next(request)
+
+    return JSONResponse({"detail": "Unauthorized"}, status_code=401)
 
 
 # ── MCP auth middleware ────────────────────────────────────────────────────────
@@ -116,7 +164,7 @@ async def mcp_auth_middleware(request: Request, call_next):
                 },
                 status_code=401,
             )
-        if not stored_key or token != stored_key:
+        if not stored_key or not compare_digest(token, stored_key):
             return JSONResponse({"error": "Invalid API key"}, status_code=401)
     return await call_next(request)
 
@@ -152,6 +200,10 @@ app.include_router(stream_router.router)
 app.include_router(trash.router)
 app.include_router(meta_router.router, prefix="/api/v1")
 app.include_router(updates_router.router, prefix="/api/v1")
+app.include_router(auth_router.router)
+app.include_router(admin_users.router)
+app.include_router(permissions_router.router)
+app.include_router(share_links_router.router)
 
 
 @app.get("/health")
