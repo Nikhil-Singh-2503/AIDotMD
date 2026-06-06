@@ -25,7 +25,7 @@ def verify_password(password: str, password_hash: str) -> bool:
         _, algo, iterations, salt, hash_b64 = parts
         dk = hashlib.pbkdf2_hmac(algo, password.encode('utf-8'), salt.encode('utf-8'), int(iterations))
         expected = base64.b64decode(hash_b64)
-        return dk == expected
+        return secrets.compare_digest(dk, expected)
     except (ValueError, IndexError, TypeError):
         return False
 
@@ -34,25 +34,37 @@ def generate_token() -> str:
     return f"dm_{secrets.token_urlsafe(48)}"
 
 
+def _hash_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 async def create_session(db: AsyncSession, user_id: str) -> Session:
     token = generate_token()
+    token_hash = _hash_token(token)
     expires_at = datetime.now(timezone.utc) + timedelta(days=_SESSION_TTL_DAYS)
-    session = Session(user_id=user_id, token=token, expires_at=expires_at)
+    session = Session(user_id=user_id, token=token_hash, expires_at=expires_at)
     db.add(session)
     await db.commit()
     await db.refresh(session)
+    # Keep session.token as the plaintext for the return value (overwrite in-memory)
+    session.token = token
     return session
 
 
 async def get_session_by_token(db: AsyncSession, token: str) -> Optional[Session]:
+    token_hash = _hash_token(token)
     result = await db.execute(
-        select(Session).where(Session.token == token, Session.expires_at > datetime.now(timezone.utc))
+        select(Session).where(Session.token == token_hash, Session.expires_at > datetime.now(timezone.utc))
     )
-    return result.scalar_one_or_none()
+    session = result.scalar_one_or_none()
+    if session:
+        session.token = token
+    return session
 
 
 async def delete_session(db: AsyncSession, token: str) -> None:
-    result = await db.execute(select(Session).where(Session.token == token))
+    token_hash = _hash_token(token)
+    result = await db.execute(select(Session).where(Session.token == token_hash))
     session = result.scalar_one_or_none()
     if session:
         await db.delete(session)

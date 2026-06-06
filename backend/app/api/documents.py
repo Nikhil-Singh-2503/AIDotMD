@@ -32,10 +32,20 @@ async def create_document(data: DocumentCreate, db: AsyncSession = Depends(get_d
 
 
 @router.get("", response_model=List[DocumentOut])
-async def list_documents(section_id: Optional[str] = Query(None), db: AsyncSession = Depends(get_db)):
-    if section_id:
-        return await document_service.list_by_section(db, section_id)
-    return await document_service.list_all(db)
+async def list_documents(request: Request, section_id: Optional[str] = Query(None), db: AsyncSession = Depends(get_db)):
+    docs = (await document_service.list_by_section(db, section_id)
+            if section_id else await document_service.list_all(db))
+    user = getattr(request.state, "user", None)
+    link = getattr(request.state, "share_link", None)
+    if user:
+        tuples = [(d.id, d.section_id) for d in docs]
+        visible = set(await permission_service.filter_visible(db, user, tuples))
+        return [d for d in docs if d.id in visible]
+    if link:
+        return [d for d in docs
+                if (link.document_id and d.id == link.document_id)
+                or (link.section_id and d.section_id == link.section_id)]
+    raise HTTPException(status_code=401, detail="Authentication required")
 
 
 @router.post("/reorder", status_code=204)

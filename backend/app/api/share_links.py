@@ -70,11 +70,17 @@ async def create_share_link(
 
 @router.get("", response_model=List[ShareLinkOut])
 async def list_share_links(
+    request: Request,
     document_id: Optional[str] = Query(None),
     section_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
+    user = await _resolve_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     query = select(ShareLinkModel)
+    if user.role != "admin":
+        query = query.where(ShareLinkModel.created_by == user.id)
     if document_id:
         query = query.where(ShareLinkModel.document_id == document_id)
     if section_id:

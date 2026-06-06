@@ -69,9 +69,12 @@ async def can_access(
 
 
 async def require_write_permission(request: Request) -> None:
+    link = getattr(request.state, "share_link", None)
+    if link is not None and getattr(link, "permission", "read") == "write":
+        return
     user = getattr(request.state, "user", None)
     if user is None:
-        return
+        raise HTTPException(status_code=401, detail="Authentication required")
     if _role_default(user.role) < _level("write"):
         raise HTTPException(status_code=403, detail="Viewer role does not have write permission")
 
@@ -79,7 +82,7 @@ async def require_write_permission(request: Request) -> None:
 async def require_admin_permission(request: Request) -> None:
     user = getattr(request.state, "user", None)
     if user is None:
-        return
+        raise HTTPException(status_code=401, detail="Authentication required")
     if _role_default(user.role) < 2:
         raise HTTPException(status_code=403, detail="Admin access required")
 

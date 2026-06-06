@@ -48,7 +48,7 @@ async def upload_markdown(
 
 @router.post("/image", response_model=ImageUploadResponse)
 async def upload_image(file: UploadFile = File(...), _=Depends(permission_service.require_write_permission)):
-    allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+    allowed = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
     suffix = "." + file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
     if suffix not in allowed:
         raise HTTPException(status_code=400, detail=f"File type not allowed. Use: {allowed}")

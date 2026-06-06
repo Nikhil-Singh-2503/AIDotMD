@@ -54,9 +54,9 @@ async def change_password(request: Request, data: ChangePasswordRequest, db: Asy
 
 @router.post("/reset-admin")
 async def reset_admin_password(request: Request, db: AsyncSession = Depends(get_db)):
-    host = request.headers.get("host", "").split(":")[0]
-    if host not in {"localhost", "127.0.0.1", "::1"}:
-        raise HTTPException(status_code=403, detail="Only accessible from localhost")
+    client_ip = request.client.host if request.client else ""
+    if client_ip not in ("127.0.0.1", "::1"):
+        raise HTTPException(status_code=403, detail="Only accessible from localhost (real socket)")
 
     user = await user_service.get_by_email(db, "admin@aidotmd.local")
     if not user:

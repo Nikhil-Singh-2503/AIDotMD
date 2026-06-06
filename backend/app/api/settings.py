@@ -55,7 +55,7 @@ async def get_settings_endpoint(request: Request):
     cfg = settings_service.read_config()
 
     user = getattr(request.state, "user", None)
-    show_full = user is None or user.role in ("admin", "editor")
+    show_full = user is not None and user.role == "admin"
     mcp_key = settings_service.get_mcp_key()
 
     def _get(key: str, fallback: str) -> str:
@@ -79,7 +79,7 @@ async def get_settings_endpoint(request: Request):
 
 
 @router.put("/settings", response_model=UpdateSettingsResponse)
-async def update_settings(body: UpdateSettingsRequest, _=Depends(permission_service.require_write_permission)):
+async def update_settings(body: UpdateSettingsRequest, _=Depends(permission_service.require_admin_permission)):
     """Save configuration to data/aidotmd.config.json."""
     updates: dict = {}
 
@@ -110,14 +110,14 @@ async def update_settings(body: UpdateSettingsRequest, _=Depends(permission_serv
 
 
 @router.post("/settings/regenerate-key")
-async def regenerate_mcp_key(_=Depends(permission_service.require_write_permission)):
+async def regenerate_mcp_key(_=Depends(permission_service.require_admin_permission)):
     """Generate a new MCP API key and persist it."""
     key = settings_service.regenerate_mcp_key()
     return {"mcp_api_key": key}
 
 
 @router.post("/settings/test-storage", response_model=TestStorageResponse)
-async def test_storage_connection(body: UpdateSettingsRequest, _=Depends(permission_service.require_write_permission)):
+async def test_storage_connection(body: UpdateSettingsRequest, _=Depends(permission_service.require_admin_permission)):
     """
     Quick validation of S3/R2 credentials by attempting a
     small test write + delete before the user saves.

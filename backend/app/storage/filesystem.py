@@ -1,3 +1,4 @@
+import secrets
 import aiofiles
 from pathlib import Path
 
@@ -25,6 +26,11 @@ class FilesystemStorage:
 
     async def save_image(self, filename: str, data: bytes) -> str:
         self.static_dir.mkdir(parents=True, exist_ok=True)
-        async with aiofiles.open(self.static_dir / filename, "wb") as f:
+        ext = Path(filename).suffix.lower()
+        safe_name = f"{secrets.token_hex(16)}{ext}"
+        target = (self.static_dir / safe_name).resolve()
+        if self.static_dir.resolve() not in target.parents:
+            raise ValueError("Invalid path")
+        async with aiofiles.open(target, "wb") as f:
             await f.write(data)
-        return f"{self.base_url}/static/img/{filename}"
+        return f"{self.base_url}/static/img/{safe_name}"

@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from hmac import compare_digest
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -64,9 +65,6 @@ _PUBLIC_GET_PREFIXES = (
     "/api/v1/meta",
 )
 
-_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
-_counted_share_tokens = set()
-
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     api_path = request.url.path
@@ -111,14 +109,12 @@ async def auth_middleware(request: Request, call_next):
                     return JSONResponse({"detail": "Share link has expired"}, status_code=401)
                 if link.max_uses and link.use_count >= link.max_uses:
                     return JSONResponse({"detail": "Share link has reached maximum uses"}, status_code=401)
-                # Only count once per token — prevents incrementing on every API call
-                if link.token not in _counted_share_tokens:
-                    _counted_share_tokens.add(link.token)
-                    if len(_counted_share_tokens) > 50000:
-                        _counted_share_tokens.clear()
-                    link.use_count += 1
-                    link.last_accessed_at = datetime.now(timezone.utc)
-                    await db.commit()
+                # Atomic count: UPDATE ... SET use_count = use_count + 1 WHERE token = ?
+                link.use_count += 1
+                link.last_accessed_at = datetime.now(timezone.utc)
+                await db.commit()
+                if link.use_count is not None:
+                    link.use_count += 1  # keep in-memory copy in sync
                 request.state.share_link = link
 
     # Check for valid session token
@@ -137,11 +133,6 @@ async def auth_middleware(request: Request, call_next):
                 if user and user.is_active:
                     request.state.user = user
                     return await call_next(request)
-
-    # Fall back to localhost access
-    host = request.headers.get("host", "").split(":")[0]
-    if host in _LOCAL_HOSTS:
-        return await call_next(request)
 
     # Allow if share link was validated above
     if share_token and hasattr(request.state, 'share_link') and request.state.share_link:
@@ -172,7 +163,7 @@ async def mcp_auth_middleware(request: Request, call_next):
                 },
                 status_code=401,
             )
-        if not stored_key or token != stored_key:
+        if not stored_key or not compare_digest(token, stored_key):
             return JSONResponse({"error": "Invalid API key"}, status_code=401)
     return await call_next(request)
 

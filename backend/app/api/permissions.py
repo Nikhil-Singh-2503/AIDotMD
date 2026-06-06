@@ -5,7 +5,7 @@ from typing import List, Optional
 from app.db import get_db
 from app.models.models import DocPermission as DocPermissionModel, User
 from app.schemas.permission import PermissionCreate, PermissionUpdate, PermissionOut
-from app.services.permission_service import require_write_permission
+from app.services.permission_service import require_write_permission, require_admin_permission
 
 _VALID_PERMS = {"read", "write"}
 
@@ -35,6 +35,7 @@ async def list_permissions(
     document_id: Optional[str] = Query(None),
     section_id: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
+    _=Depends(require_admin_permission),
 ):
     query = select(DocPermissionModel)
     if document_id:
