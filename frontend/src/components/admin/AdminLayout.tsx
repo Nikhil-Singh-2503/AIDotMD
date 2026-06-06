@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/useAuth'
+import { ProfileModal } from '@/components/ProfileModal'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -22,6 +23,7 @@ import {
   Users,
   LogOut,
   Shield,
+  User,
 } from 'lucide-react'
 
 interface AdminLayoutProps {
@@ -42,6 +44,7 @@ const navItems = [
 export function AdminLayout({ children }: AdminLayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
@@ -115,11 +118,23 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         })}
       </nav>
 
+      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
+
       <div className="border-t p-3 space-y-2">
         {user && !collapsed && (
-          <div className="px-2 py-1 text-xs text-muted-foreground truncate">
-            {user.display_name}
-          </div>
+          <button
+            onClick={() => setShowProfile(true)}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted transition-colors text-left"
+          >
+            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+              {user.display_name.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium truncate">{user.display_name}</p>
+              <p className="text-[10px] text-muted-foreground capitalize">{user.role}</p>
+            </div>
+            <User className="w-3 h-3 text-muted-foreground shrink-0" />
+          </button>
         )}
         {!collapsed && versionData?.version && (
           <div className="px-2 py-1 text-xs text-muted-foreground">
@@ -156,6 +171,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               </div>
             ) : (
               <>
+                {user && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setShowProfile(true)}
+                    title="Profile"
+                  >
+                    <User className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"

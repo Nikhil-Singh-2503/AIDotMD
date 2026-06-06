@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/api/client'
 import type { DocumentVersion, SectionVersion } from '@/api/client'
 import { Button } from '@/components/ui/button'
-import { History, RotateCcw, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { History, RotateCcw, X, ChevronDown, ChevronRight, FileDiff } from 'lucide-react'
+import { DiffModal } from '@/components/DiffModal'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -33,17 +34,21 @@ function isDocVersion(v: AnyVersion): v is DocumentVersion {
 function VersionRow({
   v,
   onRestore,
+  onViewChanges,
   restoring,
   expanded,
   onToggleExpand,
   isCurrent,
+  hasNewer,
 }: {
   v: AnyVersion
   onRestore: (id: string) => void
+  onViewChanges: (vId: string) => void
   restoring: boolean
   expanded: boolean
   onToggleExpand: () => void
   isCurrent: boolean
+  hasNewer: boolean
 }) {
   const docV = isDocVersion(v) ? v : null
 
@@ -74,18 +79,31 @@ function VersionRow({
           <p className="text-[11px] text-muted-foreground mt-0.5">{formatTime(v.created_at)}</p>
         </div>
 
-        {!isCurrent && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="shrink-0 h-7 text-xs gap-1.5"
-            disabled={restoring}
-            onClick={() => onRestore(v.id)}
-          >
-            <RotateCcw className="w-3 h-3" />
-            Restore
-          </Button>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {!isCurrent && hasNewer && docV && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              onClick={() => onViewChanges(v.id)}
+              title="View changes compared to newer version"
+            >
+              <FileDiff className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          {!isCurrent && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs gap-1.5"
+              disabled={restoring}
+              onClick={() => onRestore(v.id)}
+            >
+              <RotateCcw className="w-3 h-3" />
+              Restore
+            </Button>
+          )}
+        </div>
       </div>
 
       {docV && expanded && (
@@ -104,6 +122,7 @@ function VersionRow({
 export function VersionHistoryModal({ id, mode, onRestored }: Props) {
   const [open, setOpen] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [diffTarget, setDiffTarget] = useState<{ olderId: string; newerId: string } | null>(null)
   const qc = useQueryClient()
 
   const { data: versions = [] as AnyVersion[], isLoading } = useQuery<AnyVersion[]>({
@@ -130,6 +149,18 @@ export function VersionHistoryModal({ id, mode, onRestored }: Props) {
 
   const currentVersionId = (versions as AnyVersion[])[0]?.id
 
+  const versionList = versions as AnyVersion[]
+
+  const handleViewChanges = (olderId: string) => {
+    setOpen(false)
+    const idx = versionList.findIndex(v => v.id === olderId)
+    if (idx > 0) {
+      setDiffTarget({ olderId, newerId: versionList[idx - 1].id })
+    } else if (versionList.length > 1) {
+      setDiffTarget({ olderId, newerId: versionList[0].id })
+    }
+  }
+
   return (
     <>
       {/* Trigger */}
@@ -143,6 +174,18 @@ export function VersionHistoryModal({ id, mode, onRestored }: Props) {
         <History className="w-4 h-4" />
         <span className="hidden sm:inline text-xs">History</span>
       </Button>
+
+      {/* Diff Modal */}
+      {diffTarget && mode === 'document' && (
+        <DiffModal
+          docId={id}
+          v1Id={diffTarget.olderId}
+          v2Id={diffTarget.newerId}
+          v1Label="Older"
+          v2Label="Newer"
+          onClose={() => setDiffTarget(null)}
+        />
+      )}
 
       {/* Overlay */}
       {open && (
@@ -171,15 +214,17 @@ export function VersionHistoryModal({ id, mode, onRestored }: Props) {
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2">
               {isLoading ? (
                 <p className="text-sm text-muted-foreground animate-pulse px-1">Loading history…</p>
-              ) : versions.length === 0 ? (
+              ) : versionList.length === 0 ? (
                 <p className="text-sm text-muted-foreground px-1">No versions recorded yet.</p>
               ) : (
-                (versions as AnyVersion[]).map(v => (
+                versionList.map((v, i) => (
                   <VersionRow
                     key={v.id}
                     v={v}
                     isCurrent={v.id === currentVersionId}
+                    hasNewer={i > 0}
                     onRestore={(vid) => restore.mutate(vid)}
+                    onViewChanges={handleViewChanges}
                     restoring={restore.isPending}
                     expanded={expandedId === v.id}
                     onToggleExpand={() => setExpandedId(prev => prev === v.id ? null : v.id)}

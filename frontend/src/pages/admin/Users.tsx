@@ -7,43 +7,10 @@ import { useToast } from '@/hooks/useToast'
 import { useAuth } from '@/hooks/useAuth'
 import {
   RefreshCw, Shield, ShieldAlert, Plus, X, Trash2,
-  KeyRound, UserCheck, UserX,
+  KeyRound, UserCheck, UserX, Key,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-interface User {
-  id: string
-  email: string
-  display_name: string
-  role: string
-  is_active: boolean
-  is_service_account: boolean
-  created_at: string
-}
-
-async function fetchUsers(): Promise<User[]> {
-  const token = localStorage.getItem('aidotmd_session_token')
-  const res = await fetch('/api/v1/admin/users', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error('Failed to fetch users')
-  return res.json()
-}
-
-async function apiCall(method: string, path: string, body?: unknown) {
-  const token = localStorage.getItem('aidotmd_session_token')
-  const res = await fetch(path, {
-    method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: 'Request failed' }))
-    throw new Error(err.detail || 'Request failed')
-  }
-  if (res.status === 204) return null
-  return res.json()
-}
+import { api } from '@/api/client'
 
 const roleOptions = ['admin', 'editor', 'viewer']
 
@@ -70,17 +37,23 @@ export default function AdminUsers() {
   const [resetTarget, setResetTarget] = useState<{ id: string; name: string } | null>(null)
   const [resetResult, setResetResult] = useState<string | null>(null)
 
+  const [createdMcpKey, setCreatedMcpKey] = useState<string | null>(null)
+  const [mcpRegenTarget, setMcpRegenTarget] = useState<{ id: string; name: string } | null>(null)
+  const [mcpRegenKey, setMcpRegenKey] = useState<string | null>(null)
+  const [viewMcpKey, setViewMcpKey] = useState<{ key: string; name: string } | null>(null)
+
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['admin-users'],
-    queryFn: fetchUsers,
+    queryFn: () => api.admin.users.list(),
   })
 
   const createUser = useMutation({
-    mutationFn: () => apiCall('POST', '/api/v1/admin/users', newUser),
-    onSuccess: () => {
+    mutationFn: () => api.admin.users.create(newUser),
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['admin-users'] })
       setShowCreate(false)
       setNewUser({ email: '', display_name: '', password: '', role: 'editor' })
+      setCreatedMcpKey(data.mcp_key)
       toast({ title: 'User created', variant: 'success' })
     },
     onError: (err: any) => toast({ title: 'Failed to create user', description: err.message, variant: 'error' }),
@@ -88,7 +61,7 @@ export default function AdminUsers() {
 
   const updateRole = useMutation({
     mutationFn: ({ id, role }: { id: string; role: string }) =>
-      apiCall('PUT', `/api/v1/admin/users/${id}`, { role }),
+      api.admin.users.update(id, { role }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-users'] })
       toast({ title: 'Role updated', variant: 'success' })
@@ -98,7 +71,7 @@ export default function AdminUsers() {
 
   const toggleActive = useMutation({
     mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      apiCall('PUT', `/api/v1/admin/users/${id}`, { is_active }),
+      api.admin.users.update(id, { is_active }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-users'] })
       toast({ title: 'User status updated', variant: 'success' })
@@ -107,8 +80,8 @@ export default function AdminUsers() {
   })
 
   const resetPassword = useMutation({
-    mutationFn: (id: string) => apiCall('POST', `/api/v1/admin/users/${id}/reset-password`),
-    onSuccess: (data: any) => {
+    mutationFn: (id: string) => api.admin.users.resetPassword(id),
+    onSuccess: (data) => {
       setResetResult(data.temp_password)
       toast({ title: 'Password reset', description: 'Copy the temp password before closing', variant: 'warning' })
     },
@@ -116,13 +89,33 @@ export default function AdminUsers() {
   })
 
   const deleteUser = useMutation({
-    mutationFn: (id: string) => apiCall('DELETE', `/api/v1/admin/users/${id}`),
+    mutationFn: (id: string) => api.admin.users.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-users'] })
       setDeleteConfirm(null)
       toast({ title: 'User deleted', variant: 'warning' })
     },
     onError: (err: any) => toast({ title: 'Failed to delete', description: err.message, variant: 'error' }),
+  })
+
+  const fetchMcpKey = useMutation({
+    mutationFn: (id: string) => api.admin.users.getMcpKey(id),
+    onSuccess: (data, id) => {
+      const user = users.find(u => u.id === id)
+      setViewMcpKey({ key: data.mcp_key, name: user?.display_name || 'User' })
+    },
+    onError: (err: any) => toast({ title: 'Failed to view MCP key', description: err.message, variant: 'error' }),
+  })
+
+  const regenUserMcpKey = useMutation({
+    mutationFn: (id: string) => api.admin.users.regenerateMcpKey(id),
+    onSuccess: (data, id) => {
+      qc.invalidateQueries({ queryKey: ['admin-users'] })
+      const user = users.find(u => u.id === id)
+      setMcpRegenKey(data.mcp_key)
+      toast({ title: 'MCP key regenerated', description: `New key for ${user?.display_name || 'user'} generated`, variant: 'warning' })
+    },
+    onError: (err: any) => toast({ title: 'Failed to regenerate MCP key', description: err.message, variant: 'error' }),
   })
 
   if (currentUser?.role !== 'admin') {
@@ -164,6 +157,7 @@ export default function AdminUsers() {
               <th className="text-left p-3 font-medium">User</th>
               <th className="text-left p-3 font-medium hidden sm:table-cell">Email</th>
               <th className="text-left p-3 font-medium">Role</th>
+              <th className="text-left p-3 font-medium hidden md:table-cell">MCP Key</th>
               <th className="text-left p-3 font-medium hidden md:table-cell">Status</th>
               <th className="p-3 w-24 font-medium text-center">Actions</th>
             </tr>
@@ -213,6 +207,13 @@ export default function AdminUsers() {
                   )}
                 </td>
                 <td className="p-3 hidden md:table-cell">
+                  {u.has_mcp_key ? (
+                    <Badge variant="secondary" className="text-foreground">Active</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-muted-foreground">None</Badge>
+                  )}
+                </td>
+                <td className="p-3 hidden md:table-cell">
                   {u.is_active
                     ? <Badge variant="secondary" className="text-green-600 border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">Active</Badge>
                     : <Badge variant="outline" className="text-muted-foreground">Disabled</Badge>
@@ -222,6 +223,22 @@ export default function AdminUsers() {
                   <div className="flex justify-center gap-1">
                     {!u.is_service_account && u.id !== currentUser?.id && (
                       <>
+                        {u.has_mcp_key && (
+                          <button
+                            onClick={() => fetchMcpKey.mutate(u.id)}
+                            className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                            title="View MCP key"
+                          >
+                            <Key className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setMcpRegenTarget({ id: u.id, name: u.display_name })}
+                          className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                          title="Regenerate MCP key"
+                        >
+                          <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                        </button>
                         <button
                           onClick={() => toggleActive.mutate({ id: u.id, is_active: !u.is_active })}
                           className="p-1.5 rounded-md hover:bg-muted transition-colors"
@@ -250,7 +267,7 @@ export default function AdminUsers() {
               </tr>
             ))}
             {users.length === 0 && (
-              <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No users found.</td></tr>
+              <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No users found.</td></tr>
             )}
           </tbody>
         </table>
@@ -367,6 +384,100 @@ export default function AdminUsers() {
               Copy to Clipboard
             </Button>
             <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setResetResult(null)}>
+              Done
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Created MCP Key */}
+      {createdMcpKey && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center print:hidden">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setCreatedMcpKey(null)} />
+          <div className="relative bg-background rounded-xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4">
+            <h2 className="text-base font-semibold mb-3">User Created</h2>
+            <p className="text-sm text-muted-foreground mb-3">MCP API Key (show once):</p>
+            <div className="rounded-lg bg-muted px-3 py-2 font-mono text-xs text-center select-all break-all mb-4">
+              {createdMcpKey}
+            </div>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mb-4">
+              Copy this now. It won't be shown again. The user can view their key in Settings → MCP.
+            </p>
+            <Button size="sm" className="w-full" onClick={() => { navigator.clipboard.writeText(createdMcpKey); toast({ title: 'Copied to clipboard', variant: 'success' }) }}>
+              Copy to Clipboard
+            </Button>
+            <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setCreatedMcpKey(null)}>
+              Done
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* View MCP Key */}
+      {viewMcpKey && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center print:hidden">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setViewMcpKey(null)} />
+          <div className="relative bg-background rounded-xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4">
+            <h2 className="text-base font-semibold mb-3">MCP Key — {viewMcpKey.name}</h2>
+            <div className="rounded-lg bg-muted px-3 py-2 font-mono text-xs text-center select-all break-all mb-4">
+              {viewMcpKey.key}
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              The user can also view this key in <strong>Settings → MCP</strong>.
+            </p>
+            <Button size="sm" className="w-full" onClick={() => { navigator.clipboard.writeText(viewMcpKey.key); toast({ title: 'Copied to clipboard', variant: 'success' }) }}>
+              Copy to Clipboard
+            </Button>
+            <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setViewMcpKey(null)}>
+              Done
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Regenerate MCP Key Confirmation */}
+      {mcpRegenTarget && !mcpRegenKey && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center print:hidden">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMcpRegenTarget(null)} />
+          <div className="relative bg-background rounded-xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4">
+            <h2 className="text-base font-semibold mb-3">Regenerate MCP Key</h2>
+            <p className="text-sm text-muted-foreground mb-5">
+              Regenerate MCP key for <strong>"{mcpRegenTarget.name}"</strong>? Their existing key will stop working immediately.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setMcpRegenTarget(null)}>Cancel</Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  regenUserMcpKey.mutate(mcpRegenTarget.id)
+                  setMcpRegenTarget(null)
+                }}
+                disabled={regenUserMcpKey.isPending}
+              >
+                {regenUserMcpKey.isPending ? 'Regenerating...' : 'Regenerate'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MCP Key Regenerated Result */}
+      {mcpRegenKey && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center print:hidden">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMcpRegenKey(null)} />
+          <div className="relative bg-background rounded-xl border border-border shadow-2xl p-6 w-full max-w-sm mx-4">
+            <h2 className="text-base font-semibold mb-3">MCP Key Regenerated</h2>
+            <p className="text-sm text-muted-foreground mb-3">New API key:</p>
+            <div className="rounded-lg bg-muted px-3 py-2 font-mono text-xs text-center select-all break-all mb-4">
+              {mcpRegenKey}
+            </div>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mb-4">
+              Share this with the user. Their old key has been invalidated.
+            </p>
+            <Button size="sm" className="w-full" onClick={() => { navigator.clipboard.writeText(mcpRegenKey); toast({ title: 'Copied to clipboard', variant: 'success' }) }}>
+              Copy to Clipboard
+            </Button>
+            <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setMcpRegenKey(null)}>
               Done
             </Button>
           </div>

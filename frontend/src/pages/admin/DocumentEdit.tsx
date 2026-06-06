@@ -15,6 +15,12 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { VersionHistoryModal } from '@/components/VersionHistoryModal'
 import { PermissionManager } from '@/components/admin/PermissionManager'
 
+function fmtTime(iso?: string) {
+  if (!iso) return ''
+  return new Date(iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z')
+    .toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
 export default function AdminDocumentEdit() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -75,6 +81,11 @@ export default function AdminDocumentEdit() {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <h1 className="text-2xl font-bold">{isNew ? 'New Document' : 'Edit Document'}</h1>
+        {!isNew && doc && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary font-mono font-medium text-[11px]">
+            v{doc.version || '—'}
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-1">
           {!isNew && id && (
             <>
@@ -93,6 +104,23 @@ export default function AdminDocumentEdit() {
           <ThemeToggle />
         </div>
       </div>
+
+      {!isNew && doc && (doc.created_by_name || doc.updated_by_name) && (
+        <div className="flex items-center gap-3 mb-4 text-xs text-muted-foreground flex-wrap -mt-3">
+          {doc.created_by_name && (
+            <span>
+              Created by <span className="font-medium text-foreground">{doc.created_by_name}</span>
+              {doc.created_at && <span className="ml-1">{fmtTime(doc.created_at)}</span>}
+            </span>
+          )}
+          {doc.updated_by_name && (doc.updated_by_name !== doc.created_by_name || doc.updated_at !== doc.created_at) && (
+            <span>
+              · Updated by <span className="font-medium text-foreground">{doc.updated_by_name}</span>
+              {doc.updated_at && <span className="ml-1">{fmtTime(doc.updated_at)}</span>}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-1 space-y-4">

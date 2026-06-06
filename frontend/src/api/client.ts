@@ -56,12 +56,16 @@ export interface Section {
 }
 export interface Document {
   id: string; title: string; description?: string; section_id: string; slug: string;
-  content: string; order: number; version: string; is_published: boolean; created_at: string; updated_at: string;
+  content: string; order: number; version: string; is_published: boolean;
+  created_by?: string | null; updated_by?: string | null;
+  created_by_name?: string | null; updated_by_name?: string | null;
+  created_at: string; updated_at: string;
   deleted_at?: string | null;
 }
 export interface DocumentVersion {
   id: string; document_id: string; version: string; title: string; description?: string;
-  section_id: string; slug: string; content: string; order: number; is_published: boolean; created_at: string;
+  section_id: string; slug: string; content: string; order: number; is_published: boolean;
+  created_by?: string | null; created_by_name?: string | null; created_at: string;
 }
 export interface SectionVersion {
   id: string; section_id: string; version: string; title: string; slug: string;
@@ -86,6 +90,26 @@ export interface AppSettings {
   data_dir: string
   base_url: string
   use_public_url: boolean
+}
+
+export interface UserMcpKey {
+  mcp_key: string
+}
+
+export interface UserAdmin {
+  id: string; email: string; display_name: string; role: string;
+  is_active: boolean; is_service_account: boolean; has_mcp_key: boolean;
+  last_login_at?: string; created_at: string;
+}
+
+export interface CreateUserResponse {
+  user: UserAdmin;
+  mcp_key: string;
+}
+
+export interface VersionDiff {
+  v1: DocumentVersion;
+  v2: DocumentVersion;
 }
 
 export interface DocPermission {
@@ -130,6 +154,7 @@ export const api = {
     reorder: (section_id: string, ids: string[]) => request<void>('/documents/reorder', { method: 'POST', body: JSON.stringify({ section_id, ids }) }),
     getVersions: (id: string) => request<DocumentVersion[]>(`/documents/${id}/versions`),
     restoreVersion: (docId: string, versionId: string) => request<Document>(`/documents/${docId}/versions/${versionId}/restore`, { method: 'POST' }),
+    diffVersions: (docId: string, v1: string, v2: string) => request<VersionDiff>(`/documents/${docId}/versions/diff?v1=${v1}&v2=${v2}`),
   },
   nav: {
     tree: () => request<NavTree>('/nav/tree'),
@@ -161,6 +186,23 @@ export const api = {
     image: (file: File) => {
       const form = new FormData(); form.append('file', file)
       return request<{ url: string; filename: string }>('/upload/image', { method: 'POST', headers: {}, body: form })
+    },
+  },
+  auth: {
+    myMcpKey: () => request<UserMcpKey>('/auth/me/mcp-key'),
+    regenerateMyMcpKey: () => request<UserMcpKey>('/auth/me/regenerate-mcp-key', { method: 'POST' }),
+  },
+  admin: {
+    users: {
+      list: () => request<UserAdmin[]>('/admin/users'),
+      create: (data: { email: string; display_name: string; password: string; role: string }) =>
+        request<CreateUserResponse>('/admin/users', { method: 'POST', body: JSON.stringify(data) }),
+      update: (id: string, data: { email?: string; display_name?: string; role?: string; is_active?: boolean }) =>
+        request<UserAdmin>(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      resetPassword: (id: string) => request<{ temp_password: string }>(`/admin/users/${id}/reset-password`, { method: 'POST' }),
+      delete: (id: string) => request<void>(`/admin/users/${id}`, { method: 'DELETE' }),
+      getMcpKey: (id: string) => request<UserMcpKey>(`/admin/users/${id}/mcp-key`),
+      regenerateMcpKey: (id: string) => request<UserMcpKey>(`/admin/users/${id}/regenerate-mcp-key`, { method: 'POST' }),
     },
   },
   permissions: {

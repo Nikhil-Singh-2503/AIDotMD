@@ -58,6 +58,11 @@ function SortableRow({
       </td>
       <td className="p-3 font-medium">{doc.title}</td>
       <td className="p-3">
+        {doc.version != null && (
+          <Badge variant="secondary" className="font-mono text-xs">v{doc.version}</Badge>
+        )}
+      </td>
+      <td className="p-3">
         {doc.is_published
           ? <Badge variant="secondary" className="text-green-600 border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">Published</Badge>
           : <Badge variant="outline" className="text-muted-foreground">Draft</Badge>
@@ -167,6 +172,7 @@ export default function AdminDocuments() {
             <tr>
               <th className="p-3 w-8" />
               <th className="text-left p-3 font-medium">Title</th>
+              <th className="text-left p-3 font-medium">Version</th>
               <th className="text-left p-3 font-medium">Status</th>
               <th className="text-left p-3 font-medium">Section</th>
               <th className="text-left p-3 font-medium">Slug</th>
@@ -186,7 +192,7 @@ export default function AdminDocuments() {
                     />
                   ))}
                   {sortedDocs.length === 0 && (
-                    <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No documents in this section yet.</td></tr>
+                    <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No documents in this section yet.</td></tr>
                   )}
                 </tbody>
               </SortableContext>
@@ -197,6 +203,11 @@ export default function AdminDocuments() {
                 <tr key={doc.id} className="border-t hover:bg-muted/30 transition-colors">
                   <td className="p-3 w-8" />
                   <td className="p-3 font-medium">{doc.title}</td>
+                  <td className="p-3">
+                    {doc.version != null && (
+                      <Badge variant="secondary" className="font-mono text-xs">v{doc.version}</Badge>
+                    )}
+                  </td>
                   <td className="p-3">
                     {doc.is_published
                       ? <Badge variant="secondary" className="text-green-600 border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">Published</Badge>
@@ -220,7 +231,7 @@ export default function AdminDocuments() {
                 </tr>
               ))}
               {sortedDocs.length === 0 && (
-                <tr><td colSpan={6} className="p-8 text-center text-muted-foreground">No documents yet. Create one to get started.</td></tr>
+                <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No documents yet. Create one to get started.</td></tr>
               )}
             </tbody>
           )}

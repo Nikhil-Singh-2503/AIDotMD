@@ -26,10 +26,20 @@ class UserOut(BaseModel):
     role: str
     is_active: bool
     is_service_account: bool
+    has_mcp_key: bool = False
     last_login_at: Optional[datetime] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class UserMcpKeyOut(BaseModel):
+    mcp_key: str
+
+
+class CreateUserResponse(BaseModel):
+    user: UserOut
+    mcp_key: str
 
 
 class AuthResponse(BaseModel):
