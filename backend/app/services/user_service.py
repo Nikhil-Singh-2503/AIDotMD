@@ -7,6 +7,13 @@ from app.models.models import User
 from app.services.auth_service import hash_password
 
 
+_MCP_KEY_PREFIX = "dm_live_"
+
+
+def generate_mcp_key() -> str:
+    return f"{_MCP_KEY_PREFIX}{secrets.token_urlsafe(32)}"
+
+
 async def get_by_email(db: AsyncSession, email: str) -> Optional[User]:
     result = await db.execute(select(User).where(User.email == email))
     return result.scalar_one_or_none()
@@ -14,6 +21,12 @@ async def get_by_email(db: AsyncSession, email: str) -> Optional[User]:
 
 async def get_by_id(db: AsyncSession, user_id: str) -> Optional[User]:
     result = await db.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()
+
+
+async def get_by_mcp_key(db: AsyncSession, token: str) -> Optional[User]:
+    """Look up user by MCP key (plaintext match)."""
+    result = await db.execute(select(User).where(User.mcp_key == token, User.is_active == True))
     return result.scalar_one_or_none()
 
 
@@ -28,17 +41,31 @@ async def create_user(
     display_name: str,
     password: str,
     role: str = "editor",
-) -> User:
+) -> tuple[User, str]:
+    mcp_key = generate_mcp_key()
     user = User(
         email=email,
         display_name=display_name,
         password_hash=hash_password(password),
+        mcp_key=mcp_key,
         role=role,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    return user
+    return user, mcp_key
+
+
+async def regenerate_mcp_key(db: AsyncSession, user_id: str) -> Optional[str]:
+    """Regenerate MCP key for a user. Returns the new plaintext key."""
+    user = await get_by_id(db, user_id)
+    if not user:
+        return None
+    key = generate_mcp_key()
+    user.mcp_key = key
+    await db.commit()
+    await db.refresh(user)
+    return key
 
 
 async def update_user(

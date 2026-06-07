@@ -41,11 +41,15 @@ class Document(Base):
     order: Mapped[int] = mapped_column(Integer, default=0)
     version: Mapped[str] = mapped_column(String(50), nullable=False, default="")
     is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String, ForeignKey("users.id"), nullable=True)
+    updated_by: Mapped[Optional[str]] = mapped_column(String, ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     section: Mapped["Section"] = relationship("Section", back_populates="documents")
+    creator: Mapped[Optional["User"]] = relationship("User", foreign_keys=[created_by])
+    updater: Mapped[Optional["User"]] = relationship("User", foreign_keys=[updated_by])
 
 
 class SectionVersion(Base):
@@ -98,12 +102,15 @@ class DocumentVersion(Base):
     version: Mapped[str] = mapped_column(String(50), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    section_id: Mapped[str] = mapped_column(String, nullable=False)
+    section_id: Mapped[str] = mapped_column(String, ForeignKey("sections.id", ondelete="CASCADE"), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
     order: Mapped[int] = mapped_column(Integer, default=0)
     is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String, ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    creator: Mapped[Optional["User"]] = relationship("User")
 
 
 class User(Base):
@@ -113,6 +120,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    mcp_key: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     role: Mapped[str] = mapped_column(String(50), nullable=False, default="editor")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_service_account: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

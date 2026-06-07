@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
-from app.schemas.auth import LoginRequest, ChangePasswordRequest, AuthResponse, UserOut
+from app.schemas.auth import LoginRequest, ChangePasswordRequest, AuthResponse, UserOut, UserMcpKeyOut
 from app.services import auth_service, user_service
 from app.models.models import User as UserModel
 
@@ -37,6 +37,30 @@ async def me(request: Request, db: AsyncSession = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return UserOut.model_validate(user)
+
+
+@router.get("/me/mcp-key", response_model=UserMcpKeyOut)
+async def my_mcp_key(request: Request, db: AsyncSession = Depends(get_db)):
+    """Return the current user's MCP key (plaintext). Requires auth."""
+    user = await _resolve_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    if not user.mcp_key:
+        from app.services import user_service
+        new_key = await user_service.regenerate_mcp_key(db, user.id)
+        return UserMcpKeyOut(mcp_key=new_key)
+    return UserMcpKeyOut(mcp_key=user.mcp_key)
+
+
+@router.post("/me/regenerate-mcp-key", response_model=UserMcpKeyOut)
+async def regenerate_my_mcp_key(request: Request, db: AsyncSession = Depends(get_db)):
+    """Regenerate the current user's MCP key."""
+    user = await _resolve_user(request, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    from app.services import user_service
+    new_key = await user_service.regenerate_mcp_key(db, user.id)
+    return UserMcpKeyOut(mcp_key=new_key)
 
 
 @router.post("/change-password", response_model=UserOut)

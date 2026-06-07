@@ -138,31 +138,40 @@ const FEATURE_CARDS = [
     dotColor: 'bg-green-500',
   },
   {
-    icon: '🔗',
+    icon: '🤖',
+    iconBg: 'bg-violet-500/10',
+    title: 'Per-User MCP Keys',
+    description: 'Every user gets their own MCP API key. No more shared secrets — full audit trail per identity.',
+    pill: 'isolated keys',
+    pillColor: 'bg-violet-500/10 border-violet-500/20 text-violet-400',
+    dotColor: 'bg-violet-400',
+  },
+  {
+    icon: '📋',
+    iconBg: 'bg-amber-500/10',
+    title: 'Version Diffing',
+    description: 'Compare any two document versions with a clean, line-level diff. See exactly what changed, when, and by whom.',
+    pill: 'line-level diff',
+    pillColor: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
+    dotColor: 'bg-amber-400',
+  },
+  {
+    icon: '🛡️',
     iconBg: 'bg-blue-500/10',
-    title: 'Public Sharing URL',
-    description: 'Set Cloudflare, ngrok, or any domain. Copy Link always copies the right public URL.',
-    pill: 'configurable',
+    title: 'Role-Based Access',
+    description: 'Admin, editor, and viewer roles with granular per-document and per-section permission overrides.',
+    pill: 'admin · editor · viewer',
     pillColor: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
     dotColor: 'bg-blue-400',
   },
   {
-    icon: '🖨️',
-    iconBg: 'bg-pink-500/10',
-    title: 'PDF Export',
-    description: 'Print any doc to a clean, styled PDF directly from the browser. No plugins needed.',
-    pill: 'browser print',
-    pillColor: 'bg-pink-500/10 border-pink-500/20 text-pink-400',
-    dotColor: 'bg-pink-400',
-  },
-  {
-    icon: '🤖',
-    iconBg: 'bg-green-500/10',
-    title: 'MCP Integration',
-    description: 'Connect Claude or Cursor via MCP — 9 tools to create, stream, and search docs autonomously.',
-    pill: 'Claude · Cursor',
-    pillColor: 'bg-green-500/10 border-green-500/20 text-green-500',
-    dotColor: 'bg-green-500',
+    icon: '👥',
+    iconBg: 'bg-cyan-500/10',
+    title: 'User Management',
+    description: 'Full admin dashboard to create, edit, enable/disable users and reset passwords. Session-based auth built in.',
+    pill: 'admin dashboard',
+    pillColor: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400',
+    dotColor: 'bg-cyan-400',
   },
   {
     icon: '🐳',
@@ -172,15 +181,6 @@ const FEATURE_CARDS = [
     pill: 'single command',
     pillColor: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400',
     dotColor: 'bg-cyan-400',
-  },
-  {
-    icon: '🔏',
-    iconBg: 'bg-purple-500/10',
-    title: 'Draft / Published',
-    description: 'Toggle visibility per doc. Drafts are admin-only; published docs are public instantly.',
-    pill: 'access control',
-    pillColor: 'bg-purple-500/10 border-purple-500/20 text-purple-400',
-    dotColor: 'bg-purple-400',
   },
 ] as const
 
@@ -197,7 +197,7 @@ function FeaturesGrid() {
             Packed with features
           </h2>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            From AI-native streaming to one-click PDF export — every feature built for real use.
+            Per-user MCP keys, version diffing, RBAC, and more — every feature built for real use.
           </p>
         </div>
 

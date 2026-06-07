@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update as sa_update
+from sqlalchemy.orm import selectinload
 from typing import Optional, List
 from slugify import slugify
 from app.models.models import Document, DocumentVersion, utcnow
@@ -7,6 +8,15 @@ from app.schemas.document import DocumentCreate, DocumentUpdate
 from app.storage.filesystem import FilesystemStorage
 from app.config import get_settings
 from app.services.version_utils import next_document_version
+
+
+_USER_LOAD_OPTS = [
+    selectinload(Document.creator),
+    selectinload(Document.updater),
+]
+_VER_USER_LOAD_OPTS = [
+    selectinload(DocumentVersion.creator),
+]
 
 # Module-level storage instance (overrideable in tests)
 _storage: Optional[FilesystemStorage] = None
@@ -24,7 +34,7 @@ def get_storage() -> FilesystemStorage:
     return _storage
 
 
-async def _snapshot(db: AsyncSession, doc: Document) -> None:
+async def _snapshot(db: AsyncSession, doc: Document, user_id: Optional[str] = None) -> None:
     """Save a version snapshot of the current document state."""
     ver = await next_document_version(db, doc.id)
     doc.version = ver
@@ -38,20 +48,23 @@ async def _snapshot(db: AsyncSession, doc: Document) -> None:
         content=doc.content,
         order=doc.order,
         is_published=doc.is_published,
+        created_by=user_id,
     )
     db.add(snapshot)
 
 
-async def create(db: AsyncSession, data: DocumentCreate) -> Document:
+async def create(db: AsyncSession, data: DocumentCreate, user_id: Optional[str] = None) -> Document:
     slug = data.slug or slugify(data.title)
     doc = Document(
         title=data.title, description=data.description, section_id=data.section_id,
         slug=slug, content=data.content, order=data.order,
         is_published=data.is_published,
+        created_by=user_id,
+        updated_by=user_id,
     )
     db.add(doc)
     await db.flush()           # get doc.id before snapshotting
-    await _snapshot(db, doc)
+    await _snapshot(db, doc, user_id)
     await db.commit()
     await db.refresh(doc)
     # Sync to filesystem
@@ -63,7 +76,9 @@ async def create(db: AsyncSession, data: DocumentCreate) -> Document:
 
 
 async def get(db: AsyncSession, doc_id: str) -> Optional[Document]:
-    result = await db.execute(select(Document).where(Document.id == doc_id, Document.deleted_at.is_(None)))
+    result = await db.execute(
+        select(Document).options(*_USER_LOAD_OPTS).where(Document.id == doc_id, Document.deleted_at.is_(None))
+    )
     return result.scalar_one_or_none()
 
 
@@ -73,7 +88,7 @@ async def get_by_slug(db: AsyncSession, section_slug: str, doc_slug: str) -> Opt
     if not section:
         return None
     result = await db.execute(
-        select(Document).where(
+        select(Document).options(*_USER_LOAD_OPTS).where(
             Document.section_id == section.id,
             Document.slug == doc_slug,
             Document.is_published == True,
@@ -84,33 +99,37 @@ async def get_by_slug(db: AsyncSession, section_slug: str, doc_slug: str) -> Opt
 
 
 async def list_all(db: AsyncSession) -> List[Document]:
-    result = await db.execute(select(Document).where(Document.deleted_at.is_(None)).order_by(Document.order, Document.created_at))
+    result = await db.execute(
+        select(Document).options(*_USER_LOAD_OPTS).where(Document.deleted_at.is_(None)).order_by(Document.order, Document.created_at)
+    )
     return list(result.scalars().all())
 
 
 async def list_by_section(db: AsyncSession, section_id: str) -> List[Document]:
     result = await db.execute(
-        select(Document).where(Document.section_id == section_id, Document.deleted_at.is_(None)).order_by(Document.order, Document.created_at)
+        select(Document).options(*_USER_LOAD_OPTS).where(Document.section_id == section_id, Document.deleted_at.is_(None)).order_by(Document.order, Document.created_at)
     )
     return list(result.scalars().all())
 
 
 async def list_published(db: AsyncSession) -> List[Document]:
     result = await db.execute(
-        select(Document)
+        select(Document).options(*_USER_LOAD_OPTS)
         .where(Document.is_published == True, Document.deleted_at.is_(None))
         .order_by(Document.order, Document.created_at)
     )
     return list(result.scalars().all())
 
 
-async def update(db: AsyncSession, doc_id: str, data: DocumentUpdate) -> Optional[Document]:
+async def update(db: AsyncSession, doc_id: str, data: DocumentUpdate, user_id: Optional[str] = None) -> Optional[Document]:
     doc = await get(db, doc_id)
     if not doc:
         return None
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(doc, field, value)
-    await _snapshot(db, doc)
+    if user_id:
+        doc.updated_by = user_id
+    await _snapshot(db, doc, user_id)
     await db.commit()
     await db.refresh(doc)
     # Re-sync filesystem
@@ -144,14 +163,21 @@ async def reorder(db: AsyncSession, section_id: str, ids: List[str]) -> None:
 
 async def list_versions(db: AsyncSession, doc_id: str) -> List[DocumentVersion]:
     result = await db.execute(
-        select(DocumentVersion)
+        select(DocumentVersion).options(*_VER_USER_LOAD_OPTS)
         .where(DocumentVersion.document_id == doc_id)
         .order_by(DocumentVersion.created_at.desc())
     )
     return list(result.scalars().all())
 
 
-async def restore_version(db: AsyncSession, doc_id: str, version_id: str) -> Optional[Document]:
+async def get_version(db: AsyncSession, version_id: str) -> Optional[DocumentVersion]:
+    result = await db.execute(
+        select(DocumentVersion).options(*_VER_USER_LOAD_OPTS).where(DocumentVersion.id == version_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def restore_version(db: AsyncSession, doc_id: str, version_id: str, user_id: Optional[str] = None) -> Optional[Document]:
     """Restore a document to a past version snapshot (creates a new version entry)."""
     snap_result = await db.execute(
         select(DocumentVersion).where(DocumentVersion.id == version_id, DocumentVersion.document_id == doc_id)
@@ -169,7 +195,9 @@ async def restore_version(db: AsyncSession, doc_id: str, version_id: str) -> Opt
     doc.order = snap.order
     doc.is_published = snap.is_published
     doc.section_id = snap.section_id
-    await _snapshot(db, doc)
+    if user_id:
+        doc.updated_by = user_id
+    await _snapshot(db, doc, user_id)
     await db.commit()
     await db.refresh(doc)
     from app.services.section_service import get as get_section

@@ -147,9 +147,8 @@ async def auth_middleware(request: Request, call_next):
 
 @app.middleware("http")
 async def mcp_auth_middleware(request: Request, call_next):
+    from app.models.models import User as UserModel
     if request.url.path.startswith("/mcp"):
-        stored_key = settings_service.get_mcp_key()
-
         # Accept key from Authorization header OR ?api_key= query param
         auth = request.headers.get("authorization", "")
         if auth.lower().startswith("bearer "):
@@ -164,8 +163,21 @@ async def mcp_auth_middleware(request: Request, call_next):
                 },
                 status_code=401,
             )
-        if not stored_key or not compare_digest(token, stored_key):
-            return JSONResponse({"error": "Invalid API key"}, status_code=401)
+
+        # 1) Try per-user MCP key lookup
+        async with SessionLocal() as db:
+            result = await db.execute(select(UserModel).where(UserModel.mcp_key == token, UserModel.is_active == True))
+            user = result.scalar_one_or_none()
+            if user:
+                request.state.user = user
+                return await call_next(request)
+
+        # 2) Fallback to shared legacy MCP key
+        stored_key = settings_service.get_mcp_key()
+        if stored_key and compare_digest(token, stored_key):
+            return await call_next(request)
+
+        return JSONResponse({"error": "Invalid API key"}, status_code=401)
     return await call_next(request)
 
 

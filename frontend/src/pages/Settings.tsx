@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -366,17 +366,22 @@ function IntegrationBlock({
   )
 }
 
-function McpTab({ settings }: { settings: AppSettings }) {
-  const qc = useQueryClient()
+function McpTab(_props: { settings: AppSettings }) {
   const { toast } = useToast()
-  const [key, setKey] = useState(settings.mcp_api_key)
+  const [key, setKey] = useState('')
   const [showKey, setShowKey] = useState(false)
 
+  // Fetch current user's MCP key
+  useEffect(() => {
+    api.auth.myMcpKey()
+      .then(res => setKey(res.mcp_key))
+      .catch(() => setKey(''))
+  }, [])
+
   const regen = useMutation({
-    mutationFn: api.settings.regenerateKey,
+    mutationFn: api.auth.regenerateMyMcpKey,
     onSuccess: (res) => {
-      setKey(res.mcp_api_key)
-      qc.invalidateQueries({ queryKey: ['settings'] })
+      setKey(res.mcp_key)
       toast({ title: 'API key regenerated', description: 'Old key has been invalidated.', variant: 'warning' })
     },
     onError: (err: any) => toast({ title: 'Failed to regenerate key', description: err.message, variant: 'error' }),

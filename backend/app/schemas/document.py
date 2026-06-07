@@ -33,6 +33,10 @@ class DocumentOut(BaseModel):
     order: int
     version: str = ""
     is_published: bool
+    created_by: Optional[str] = None
+    updated_by: Optional[str] = None
+    created_by_name: Optional[str] = None
+    updated_by_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -50,6 +54,8 @@ class DocumentVersionOut(BaseModel):
     content: str
     order: int
     is_published: bool
+    created_by: Optional[str] = None
+    created_by_name: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

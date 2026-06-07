@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db import get_db
 from app.models.models import User as UserModel
-from app.schemas.auth import UserOut, CreateUserRequest, UpdateUserRequest
+from app.schemas.auth import UserOut, CreateUserRequest, UpdateUserRequest, CreateUserResponse, UserMcpKeyOut
 from app.services import user_service
 
 router = APIRouter(prefix="/api/v1/admin/users", tags=["admin"])
@@ -18,10 +18,24 @@ async def _require_admin(request: Request, db: AsyncSession = Depends(get_db)) -
     return user
 
 
+def _to_user_out(u: UserModel) -> UserOut:
+    return UserOut(
+        id=u.id,
+        email=u.email,
+        display_name=u.display_name,
+        role=u.role,
+        is_active=u.is_active,
+        is_service_account=u.is_service_account,
+        has_mcp_key=bool(u.mcp_key),
+        last_login_at=u.last_login_at,
+        created_at=u.created_at,
+    )
+
+
 @router.get("", response_model=List[UserOut])
 async def list_users(request: Request, db: AsyncSession = Depends(get_db), _=Depends(_require_admin)):
     users = await user_service.get_all_users(db)
-    return [UserOut.model_validate(u) for u in users]
+    return [_to_user_out(u) for u in users]
 
 
 @router.get("/{user_id}", response_model=UserOut)
@@ -29,16 +43,34 @@ async def get_user(user_id: str, request: Request, db: AsyncSession = Depends(ge
     user = await user_service.get_by_id(db, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return UserOut.model_validate(user)
+    return _to_user_out(user)
 
 
-@router.post("", response_model=UserOut, status_code=201)
+@router.post("", response_model=CreateUserResponse, status_code=201)
 async def create_user(data: CreateUserRequest, request: Request, db: AsyncSession = Depends(get_db), _=Depends(_require_admin)):
     existing = await user_service.get_by_email(db, data.email)
     if existing:
         raise HTTPException(status_code=409, detail="Email already registered")
-    user = await user_service.create_user(db, data.email, data.display_name, data.password, data.role)
-    return UserOut.model_validate(user)
+    user, mcp_key = await user_service.create_user(db, data.email, data.display_name, data.password, data.role)
+    return CreateUserResponse(user=_to_user_out(user), mcp_key=mcp_key)
+
+
+@router.get("/{user_id}/mcp-key", response_model=UserMcpKeyOut)
+async def get_user_mcp_key(user_id: str, request: Request, db: AsyncSession = Depends(get_db), _=Depends(_require_admin)):
+    user = await user_service.get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.mcp_key:
+        raise HTTPException(status_code=404, detail="User has no MCP key")
+    return UserMcpKeyOut(mcp_key=user.mcp_key)
+
+
+@router.post("/{user_id}/regenerate-mcp-key", response_model=UserMcpKeyOut)
+async def regenerate_user_mcp_key(user_id: str, request: Request, db: AsyncSession = Depends(get_db), _=Depends(_require_admin)):
+    new_key = await user_service.regenerate_mcp_key(db, user_id)
+    if not new_key:
+        raise HTTPException(status_code=404, detail="User not found")
+    return UserMcpKeyOut(mcp_key=new_key)
 
 
 @router.put("/{user_id}", response_model=UserOut)
@@ -46,7 +78,7 @@ async def update_user(user_id: str, data: UpdateUserRequest, request: Request, d
     user = await user_service.update_user(db, user_id, data.email, data.display_name, data.role, data.is_active)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return UserOut.model_validate(user)
+    return _to_user_out(user)
 
 
 @router.post("/{user_id}/reset-password")

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { getAuthToken } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
@@ -68,7 +69,10 @@ export default function UpdatesPage() {
     queryFn: async () => {
       try {
         const url = `/api/v1/updates/check?include_prerelease=${includePrerelease}`
-        const res = await fetch(url)
+        const token = getAuthToken()
+        const res = await fetch(url, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
         if (!res.ok) throw new Error('Failed to check updates')
         return res.json()
       } catch {
