@@ -2,7 +2,7 @@
 
 <h1>
   <br/>
-  <img src="https://img.shields.io/badge/AI-Docs-6E40C9?style=for-the-badge&logo=readthedocs&logoColor=white" alt="AI Docs" height="40"/>
+  <img src="frontend/public/logo.png" alt="AIDotMd Logo" height="60"/>
   <br/>
   AIDotMd
   <br/>
