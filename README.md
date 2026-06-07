@@ -2,7 +2,9 @@
 
 <h1>
   <br/>
-  📝 AIDotMd
+  <img src="https://img.shields.io/badge/AI-Docs-6E40C9?style=for-the-badge&logo=readthedocs&logoColor=white" alt="AI Docs" height="40"/>
+  <br/>
+  AIDotMd
   <br/>
 </h1>
 
@@ -43,7 +45,7 @@ Every developer using AI tools runs into the same wall. Here is how AIDotMd fixe
 | 🚨 The Pain | ❌ What usually happens | ✅ How AIDotMd fixes it |
 |---|---|---|
 | 💸 **Vendor lock-in** | Notion, Confluence, GitBook store your data on their servers — paid plans, no control. | **Fully self-hosted** — SQLite on your machine, optional S3/R2. Your data never leaves your infrastructure. |
-| 🧠 **Research evaporates** | You spend hours researching in Cursor or Claude — then the session ends and the context is gone. | **AI agents write directly to AIDotMd** via MCP — automatically, in real-time, no copy-paste. |
+| 🧠 **Research evaporates** | You spend hours researching in Cursor or Claude — then the session ends and the context is gone. | **AI agents write directly to AIDotMd** via MCP — automatically, in real-time, no copy-paste. Each user gets their own API key for audit trails. |
 | 📁 **No organized view** | Even if you save `.md` files locally, there's no way to view them together. | **Section-based knowledge base** with a clean reader — all your docs organized in one place, with search. |
 | 🔗 **Sharing is a hassle** | To share a doc you paste it into Google Docs, Drive, or Loop — manually, every time. | **One-click Copy Link + PDF export.** Set a public URL once, share forever — no pasting. |
 
@@ -52,13 +54,16 @@ Every developer using AI tools runs into the same wall. Here is how AIDotMd fixe
 
 ## ✨ Features
 
-Everything you need to capture, organize, and share AI-generated knowledge — with zero cloud dependency.
+Everything you need to capture, organize, and share AI-generated knowledge — per-user MCP keys, version diffing, RBAC, and more — with zero cloud dependency.
 
 | | Feature | Description |
 |--|---------|-------------|
 | 🤖 | **AI-native MCP server** | 9 built-in tools — agents can list, create, search, and stream docs |
+| 🔑 | **Per-user MCP keys** | Each user gets their own API key with fallback to shared legacy key |
 | ⚡ | **Live streaming renderer** | Watch markdown render chunk-by-chunk as the agent writes, via SSE |
-| 📜 | **Version history** | View and restore any previous version of a document or section |
+| 📜 | **Version history** | View, restore, and diff any previous version of a document or section |
+| 📋 | **Version diffing** | Compare two versions side-by-side with clean line-level diff highlighting |
+| 👤 | **Document author tracking** | See who created and last updated each document with timestamps |
 | 🐳 | **Single command setup** | `docker-compose up --build` — full stack, no config required |
 | 🔒 | **Self-hosted** | Your docs, your data, your storage. SQLite by default, S3/R2 optional |
 | 🔍 | **Full-text search** | Instant search across all sections and documents |
@@ -316,7 +321,7 @@ If you lose the admin password, you have two options:
 
 AIDotMd ships with a built-in **MCP (Model Context Protocol) server** that any compatible AI agent can connect to.
 
-> Your MCP API key is auto-generated on first launch. Find it at **Settings → MCP** in the UI (visible to admin and editor roles). The MCP server uses its own API key authentication, separate from the web login system.
+> **Per-user MCP keys** — every user gets their own API key, auto-generated on account creation. Admins can view any user's key from the user management dashboard. Non-admin users can see their key in the **Profile** modal (click your avatar/name in the sidebar) or at **Settings → MCP** (admin only). The MCP server authenticates per-user keys first, then falls back to the shared legacy key for backward compatibility.
 
 ### Connect Claude Desktop
 
@@ -468,6 +473,9 @@ The Vite dev server proxies `/api`, `/mcp`, and `/static` to `localhost:8000`.
 
 ## 🗂️ Project Structure
 
+<details>
+<summary>Click to expand project tree</summary>
+
 ```
 aidotmd/
 ├── docker-compose.yml          # Single-command full-stack launch
@@ -498,6 +506,7 @@ aidotmd/
 │   │   │   └── server.py       # FastMCP server (9 tools)
 │   │   ├── schemas/
 │   │   │   ├── auth.py         # Pydantic models for auth requests/responses
+│   │   │   ├── document.py     # Document + DocumentVersion schemas
 │   │   │   ├── permission.py   # Permission CRUD schemas
 │   │   │   └── share_link.py   # Share link creation schemas
 │   │   └── services/
@@ -533,6 +542,9 @@ aidotmd/
         │   ├── AdminOnlyGuard.tsx   # Restricts routes to admin role only
         │   ├── AdminGuard.tsx       # Checks auth + share token for admin access
         │   ├── DocsGuard.tsx        # Checks auth + share token for doc access
+        │   ├── ProfileModal.tsx     # User profile modal (MCP key, info)
+        │   ├── DiffModal.tsx        # Version diff comparison modal
+        │   ├── VersionHistoryModal.tsx # Version history with restore + diff
         │   ├── admin/PermissionManager.tsx  # Per-doc/section permission dialog
         │   ├── ShareModal.tsx       # Share link creation and management modal
         │   ├── MarkdownRenderer.tsx
@@ -545,6 +557,8 @@ aidotmd/
         └── api/
             └── client.ts            # Type-safe API client
 ```
+
+</details>
 
 ---
 
